@@ -8,7 +8,7 @@ class DQN:
                  im_height=180,
                  im_width=160,
                  fcl_dims=512,
-                 save_path='models_x/atarix.ckpt'):
+                 save_path='DQN_model/atarix.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -64,7 +64,7 @@ class DQN:
             )
 
             self.cost = tf.reduce_mean(tf.square(self.goals - selected_action_values))
-            self.train_op = tf.train.RMSPropOptimizer(0.00025, 0.99, 0.0, 1e-6).minimize(self.cost)
+            self.train_op = tf.train.AdamOptimizer(0.00025, 0.99, 0.0, 1e-6).minimize(self.cost)
 
     def copy_from(self, other):
         mine = [t for t in tf.trainable_variables() if t.name.startswith(self.scope)]
@@ -107,18 +107,18 @@ class DQN:
     def load(self):
         self.saver = tf.train.Saver(tf.global_variables())
         load_was_success = True
-        try:
-            save_dir = '/'.join(self.save_path.split('/')[:-1])
-            ckpt = tf.train.get_checkpoint_state(save_dir)
-            load_path = ckpt.model_checkpoint_path
-            self.saver.restore(self.session, load_path)
-        except:
-            print("no saved model to load. starting new session")
-            load_was_success = False
-        else:
-            print("loaded model: {}".format(load_path))
-            saver = tf.train.Saver(tf.global_variables())
-            episode_number = int(load_path.split('-')[-1])
+        # try:
+        save_dir = '/'.join(self.save_path.split('/')[:-1])
+        ckpt = tf.train.get_checkpoint_state(save_dir)
+        load_path = ckpt.model_checkpoint_path
+        self.saver.restore(self.session, load_path)
+        # except:
+        #     print("no saved model to load. starting new session")
+        #     load_was_success = False
+        # else:
+        print("loaded model: {}".format(load_path))
+        saver = tf.train.Saver(tf.global_variables())
+        episode_number = int(load_path.split('-')[-1])
 
     def save(self, n):
         self.saver.save(self.session, self.save_path, global_step=n)
