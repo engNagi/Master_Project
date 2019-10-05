@@ -11,8 +11,8 @@ from DQnetwork import DQN
 MAX_EXPERIENCES = 50000
 MIN_EXPERIENCES = 5000
 TARGET_UPDATE_PERIOD = 10000
-im_height = 180
-im_width = 160
+im_height = 80
+im_width = 80
 action_n = 4  # env.action_space.n
 
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # hyperparameters etc
     gamma = 0.99
     batch_sz = 4
-    num_episodes = 2000
+    num_episodes = 5000
     total_t = 0
     experience_replay_buffer = []
     episode_rewards = np.zeros(num_episodes)
@@ -50,8 +50,8 @@ if __name__ == '__main__':
 
 
     # Create original and target  Networks
-    model = DQN(action_n=action_n, im_height=180, im_width=160, fcl_dims=512, scope="model")
-    target_model = DQN(action_n=action_n, im_height=180, im_width=160, fcl_dims=512, scope="target_model")
+    model = DQN(action_n=action_n, im_height=im_height, im_width=im_width, fcl_dims=512, scope="model")
+    target_model = DQN(action_n=action_n, im_height=im_height, im_width=im_width, fcl_dims=512, scope="target_model")
 
     with tf.Session() as sess:
         model.set_session(sess)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
             obs = env.reset()
             obs_small = preprocess(obs)
             state = np.stack([obs_small] * 4, axis=0)
-            assert (state.shape == (4, 180, 160))
+            assert (state.shape == (4, 80, 80))
             loss = None
 
             total_time_training = 0
@@ -154,7 +154,7 @@ if __name__ == '__main__':
                   "Avg Reward (Last 100):", "%.3f" % last_100_avg,"Epsilon:", "%.3f" % epsilon)
 
             if i % 50 == 0:
-                model.save(i+2950)
+                model.save(i)
             sys.stdout.flush()
 
     #Plots
