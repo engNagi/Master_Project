@@ -57,14 +57,14 @@ class DQN:
 
 
             # final output layer
-            self.predict_op = tf.contrib.layers.fully_connected(dense1, action_n)
+            self.predict_op = tf.layers.dense(dense1, action_n)
 
             selected_action_values = tf.reduce_sum(self.predict_op * tf.one_hot(self.actions, self.action_n),
                 reduction_indices=[1]
             )
 
             self.cost = tf.reduce_mean(tf.square(self.goals - selected_action_values))
-            self.train_op = tf.train.AdamOptimizer(0.00025, 0.99, 0.0, 1e-6).minimize(self.cost)
+            self.train_op = tf.train.RMSPropOptimizer(0.00025, 0.99, 0.0, 1e-6).minimize(self.cost)
 
     def copy_from(self, other):
         mine = [t for t in tf.trainable_variables() if t.name.startswith(self.scope)]
