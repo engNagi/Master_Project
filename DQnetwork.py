@@ -107,18 +107,18 @@ class DQN:
     def load(self):
         self.saver = tf.train.Saver(tf.global_variables())
         load_was_success = True
-        # try:
-        save_dir = '/'.join(self.save_path.split('/')[:-1])
-        ckpt = tf.train.get_checkpoint_state(save_dir)
-        load_path = ckpt.model_checkpoint_path
-        self.saver.restore(self.session, load_path)
-        # except:
-        #     print("no saved model to load. starting new session")
-        #     load_was_success = False
-        # else:
-        print("loaded model: {}".format(load_path))
-        saver = tf.train.Saver(tf.global_variables())
-        episode_number = int(load_path.split('-')[-1])
+        try:
+            save_dir = '/'.join(self.save_path.split('/')[:-1])
+            ckpt = tf.train.get_checkpoint_state(save_dir)
+            load_path = ckpt.model_checkpoint_path
+            self.saver.restore(self.session, load_path)
+        except:
+            print("no saved model to load. starting new session")
+            load_was_success = False
+        else:
+            print("loaded model: {}".format(load_path))
+            saver = tf.train.Saver(tf.global_variables())
+            episode_number = int(load_path.split('-')[-1])
 
     def save(self, n):
         self.saver.save(self.session, self.save_path, global_step=n)
