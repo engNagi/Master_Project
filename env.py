@@ -11,15 +11,16 @@ cl = ai2thor.controller.Controller(fullscreen=True)
 # cl.reset('FloorPlan28')
 # event = cl.step(dict(action='Initialize', gridSize=0.25))
 
+env.make(controller=cl)
 
-agent_pose, event, not_done, _ = env.reset(controller=cl, top_view_camera=True)
-print("agent_position:", agent_pose)
+agent_pose, done, object_position, _ = env.reset(controller=cl, grid_size=0.15)
+print("agent_position:", agent_pose, "object position:", object_position)
 
-#done = false
-while not_done:
+done = False
+while True:
     action = np.random.randint(0, 5)
-    visible = env.is_visible(event=event)
-    agent_pose_, not_done, reward, _ = env.take_action(action, controller=cl, visible=visible)
-    print("visible:", visible, "agent_pose:", agent_pose_, "not done:", not_done, "reward:",reward )
+    agent_pose_, done, reward, obj_agent_dis, visible, _ = env.take_action(action, controller=cl, object_name="Television")
+    print("visible:", visible, "\n agent_pose:", agent_pose_, "\n done:", done, "\n reward:", reward,
+          "\n distance:", obj_agent_dis)
     # plt.imshow(frame)
     # plt.show()
