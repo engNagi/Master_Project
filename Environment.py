@@ -38,10 +38,11 @@ class Environment(object):
             if object_name in obj["name"]:
                 obj = obj
         object_position = obj["position"]
-        obs = event.fram
+        obs = event.frame
         done = not event.metadata["lastActionSuccess"]
         agent_position = np.array(list(event.metadata["agent"]["position"].values()), dtype=float)
         agent_rotation = np.array(list(event.metadata["agent"]["rotation"].values()), dtype=float)
+        object_position = np.array(list(obj["position"].values()), dtype=float)
         agent_pose = np.concatenate((agent_position, agent_rotation), axis=0)
         return agent_pose, done, object_position, obs
 
