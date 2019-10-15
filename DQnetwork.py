@@ -33,24 +33,15 @@ class DQN:
             # convolutional layers
             Z = self.inputs / 255.0
             Z = tf.transpose(Z, [0, 2, 3, 1])
-            conv1 = tf.layers.conv2d(inputs=Z, filters=32,
-                                     kernel_size=(8, 8), strides=4, name='conv1',
-                                     kernel_initializer=tf.variance_scaling_initializer(scale=2))
-            conv1_activated = tf.nn.relu(conv1)
+            conv1 = tf.contrib.layers.conv2d(Z, 32, 8, 4, activation_fn=tf.nn.relu)
 
-            conv2 = tf.layers.conv2d(inputs=conv1_activated, filters=64,
-                                     kernel_size=(4, 4), strides=2, name='conv2',
-                                     kernel_initializer=tf.variance_scaling_initializer(scale=2))
-            conv2_activated = tf.nn.relu(conv2)
+            conv2 = tf.contrib.layers.conv2d(conv1, 64, 4, 2, activation_fn=tf.nn.relu)
 
-            conv3 = tf.layers.conv2d(inputs=conv2_activated, filters=128,
-                                     kernel_size=(3, 3), strides=1, name='conv3',
-                                     kernel_initializer=tf.variance_scaling_initializer(scale=2))
-            conv3_activated = tf.nn.relu(conv3)
+            conv3 = tf.contrib.layers.conv2d(conv2, 64, 3, 1, activation_fn=tf.nn.relu)
 
             # fully connected layers
-            flat = tf.layers.flatten(conv3_activated)
-            dense1 = tf.layers.dense(flat, units=self.fc1_dims,
+            flat = tf.contrib.layers.flatten(conv3)
+            dense1 =tf.contrib.layers.fully_connected(flat, self.fc1_dims,
                                      activation=tf.nn.relu,
                                      kernel_initializer=tf.variance_scaling_initializer(scale=2))
 

@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # hyperparameters etc
     gamma = 0.99
     batch_sz = 4
-    num_episodes = 5000
+    num_episodes = 2500
     total_t = 0
     experience_replay_buffer = []
     episode_rewards = np.zeros(num_episodes)
