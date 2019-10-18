@@ -16,36 +16,38 @@ class DQN:
         self.im_height=im_height
         self.im_width = im_width
         self.fc1_dims =fcl_dims
+        self.memory = []
 
         with tf.variable_scope(scope):
 
             # inputs and targets
-            self.inputs = tf.placeholder(tf.float32, shape=(None, 4, self.im_height, self.im_width),
-                                         name='inputs')
+            # self.inputs = tf.placeholder(tf.float32, shape=(None, 4, self.im_height, self.im_width),
+            #                              name='inputs')
 
             # tensorflow convolution needs the order to be:
             # (num_samples, height, width, "color")
             # so we need to tranpose later
-            self.goals = tf.placeholder(tf.float32, shape=(None,), name='Goals')
+            self.inputs = tf.placeholder(tf.float32, shape=(None, 3), name="Inputs")
+            self.goals = tf.placeholder(tf.float32, shape=(None, 3), name='Goals')
             self.actions = tf.placeholder(tf.int32, shape=(None,), name='actions')
 
             # calculate output and cost
-            # convolutional layers
-            Z = self.inputs / 255.0
-            Z = tf.transpose(Z, [0, 2, 3, 1])
-            conv1 = tf.contrib.layers.conv2d(Z, 32, 8, 4, activation_fn=tf.nn.relu)
+            # # convolutional layers
+            # Z = self.inputs / 255.0
+            # Z = tf.transpose(Z, [0, 2, 3, 1])
+            # conv1 = tf.contrib.layers.conv2d(Z, 32, 8, 4, activation_fn=tf.nn.relu)
+            #
+            # conv2 = tf.contrib.layers.conv2d(conv1, 64, 4, 2, activation_fn=tf.nn.relu)
+            #
+            # conv3 = tf.contrib.layers.conv2d(conv2, 64, 3, 1, activation_fn=tf.nn.relu)
+            #
+            # # fully connected layers
+            # flat = tf.contrib.layers.flatten(conv3)
+            # dense1 =tf.contrib.layers.fully_connected(self.state_goals, self.fc1_dims,
+            #                          activation=tf.nn.relu,
+            #                          kernel_initializer=tf.variance_scaling_initializer(scale=2))
 
-            conv2 = tf.contrib.layers.conv2d(conv1, 64, 4, 2, activation_fn=tf.nn.relu)
-
-            conv3 = tf.contrib.layers.conv2d(conv2, 64, 3, 1, activation_fn=tf.nn.relu)
-
-            # fully connected layers
-            flat = tf.contrib.layers.flatten(conv3)
-            dense1 =tf.contrib.layers.fully_connected(flat, self.fc1_dims,
-                                     activation=tf.nn.relu,
-                                     kernel_initializer=tf.variance_scaling_initializer(scale=2))
-
-
+            dense1 = tf.contrib.layers.fully_connected(self.inputs, self.fc1_dims, tf.nn.relu)
 
             # final output layer
             self.predict_op = tf.contrib.layers.fully_connected(dense1, action_n)
@@ -88,12 +90,12 @@ class DQN:
         )
         return c
 
-    def sample_action(self, x, eps):
+    def sample_action(self, state, eps):
         """Implements epsilon greedy algorithm"""
         if np.random.random() < eps:
             return np.random.choice(self.action_n)
         else:
-            return np.argmax(self.predict([x])[0])
+            return np.argmax(self.predict([state])[0])
 
     def load(self):
         self.saver = tf.train.Saver(tf.global_variables())

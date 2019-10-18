@@ -14,10 +14,10 @@ action_n = 4  # env.action_space.n
 
 
 def preprocess(img):
-    img_temp = img[31:195]  # Choose the important area of the image
-    img_temp = img_temp.mean(axis=2)  # Convert to Grayscale#
+    #img_temp = img[31:195]  # Choose the important area of the image
+    img_temp = img.mean(axis=2)  # Convert to Grayscale#
     # Downsample image using nearest neighbour interpolation
-    img_temp = imresize(img_temp, size=(im_height, im_width), interp='nearest')
+    #img_temp = imresize(img_temp, size=(im_height, im_width), interp='nearest')
     return img_temp
 
 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
                 # Take action
                 action = target_model.sample_action(state, epsilon)
-                obs, reward, done, _ = env.step(action)
+                obs, reward, done, _ = env.step(action, )
                 obs_small = preprocess(obs)
                 next_state = np.append(state[1:], np.expand_dims(obs_small, 0), axis=0)
 
