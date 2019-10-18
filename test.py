@@ -1,14 +1,12 @@
 import numpy as np
 from Experience_Memory import Episode_experience
-from Environment import Environment as env
-import ai2thor.controller
+from Environment import Environment
 from DQnetwork import DQN
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import sys
 
-cl = ai2thor.controller.Controller()
 
 #########################   hyper-parameter
 num_epochs = 200
@@ -36,7 +34,7 @@ last_100_avgs = []
 losses = []
 
 #   environment initialization
-env.make(controller=cl)
+env =Environment(object_name="Television")
 
 # Create original and target  Networks
 model = DQN(action_n=6, fcl_dims=fcl_dims, scope="model")
@@ -64,7 +62,7 @@ with tf.Session() as sess:
             num_steps_in_episode = 0
             #   parameter order returned from reset
             #   frame is removed, agent_position, done, goal, object_position
-            state, done, goal, _ = env.reset(controller=cl, object_name="Television")  # reset environment
+            _, state, done, goal, _ = env.reset()  # reset environment
 
             done = False
             while not done:
@@ -73,7 +71,7 @@ with tf.Session() as sess:
 
                 #   Order of variables returned form take_action method
                 #   frame, agent_position, done, reward, obj_agent_dis, visible
-                next_state, done, reward, _, _ = env.take_action(action=action, controller=cl)
+                next_state, done, reward, _, _ = env.take_action(action=action)
 
                 # append to experience replay
                 ep_experience.add(state, action, reward, next_state, done)
