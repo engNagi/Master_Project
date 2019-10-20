@@ -3,14 +3,13 @@
 #  the corresponding object would be visible to the agent
 
 
-from ai2thor.controller import Controller
+from ai2thor.controller import Controller, BFSController
 import numpy as np
-
+import pandas as pd
 
 #    This axis has “right hand” facing with respect to the forward Z-Axis,
 #    Y-axis pointing upward, z-axis pointing forward, x axis  pointing to the left
 class Environment(object):
-
     def __init__(self,
                  fov=60.0,
                  camera_Y=0.675,
@@ -18,9 +17,10 @@ class Environment(object):
                  visibility_distance=1.5,
                  player_screen_width=300,
                  player_screen_height=300,
-                 top_view_cam=False,
+                 full_scrn=False,
                  depth_image=False,
                  class_image=False,
+                 top_view_cam=False,
                  object_image=False,
                  third_party_cam=False,
                  scene="FloorPlan220",
@@ -39,14 +39,16 @@ class Environment(object):
         self.player_screen_height = player_screen_height
         self.top_view_cam = top_view_cam
         self.third_party_cam = third_party_cam
+        self.full_scrn = full_scrn
 
-        self.ctrl = Controller()
+        self.ctrl = Controller(fullscreen=self.full_scrn)
 
     def make(self):
         self.ctrl.start()
-        self.ctrl.reset(self.scene)
 
     def reset(self):
+        self.ctrl.reset(self.scene)
+        self.ctrl.step(dict(action="ToggleMapView"))
         self.ctrl.step(dict(action="Initialize",
                             gridSize=self.grid_size,
                             renderDepthImage=self.depth_image,
@@ -56,10 +58,7 @@ class Environment(object):
                             cameraY=self.camera_Y,
                             fieldOfView=self.fov))
 
-        if self.top_view_cam:
-            self.ctrl.step(dict(action="ToggleMapView"))
 
-        goal = [-0.075, 0.909619451, 1.75]
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
 
         self.obj = self.ctrl.last_event.metadata["objects"]
@@ -73,7 +72,7 @@ class Environment(object):
 
         first_person_obs = self.ctrl.last_event.frame
 
-        return first_person_obs, agent_position, goal, self.object_name, self.obj_pos, self.obj_agent_dis
+        return first_person_obs, agent_position, self.object_name, self.obj_pos, self.obj_agent_dis
 
     def take_action(self, action):
         #   move right
@@ -134,10 +133,20 @@ class Environment(object):
         first_person_obs = self.ctrl.last_event.frame
         #    Third party_cam "From top"
         third_cam_obs = self.ctrl.last_event.third_party_camera_frames
-        third_cam_obs = np.squeeze(third_cam_obs, axis=0)
+        #third_cam_obs = np.squeeze(third_cam_obs, axis=0)
         # done condition when the last action was successful inverted
         done = not self.ctrl.last_event.metadata["lastActionSuccess"]
         #   agent position
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
 
         return first_person_obs, agent_position, done, reward
+
+    @classmethod
+    def get_reachable_position(cls, scene):
+        controller = BFSController()
+        controller.start()
+        controller.search_all_closed(scene)
+        reachable_position = pd.DataFrame(controller.grid_points).values
+        return reachable_position
+
+
