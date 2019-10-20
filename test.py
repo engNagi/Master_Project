@@ -4,13 +4,22 @@ from Environment import Environment
 from DQnetwork import DQN
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from collections import deque
 import sys
+from ai2thor.controller import BFSController
+import pandas as pd
+import random
 
+scene = "FloorPlan220"
+controller = BFSController()
+controller.start()
+controller.search_all_closed("FloorPlan220")
+reachable_position = pd.DataFrame(controller.grid_points).values
 
 #########################   hyper-parameter
-num_epochs = 200
-num_episodes = 100
+
+num_epochs = 500
+MAX_EPISODES = 200
 her_strategy = "future"
 Her_samples = 4
 
@@ -29,22 +38,23 @@ TARGET_UPDATE_PERIOD = 10000
 total_t = 0  # counter for updating the model
 
 #   tracking parameters
-episode_rewards = np.zeros(num_episodes)
 last_100_avgs = []
 losses = []
+episode_rewards = np.zeros(MAX_EPISODES)
 
 #   environment initialization
-env =Environment(object_name="Television")
+env = Environment(top_view_cam=True, full_scrn=False, scene=scene)
+env.make()
 
 # Create original and target  Networks
 model = DQN(action_n=6, fcl_dims=fcl_dims, scope="model")
 target_model = DQN(action_n=6, fcl_dims=fcl_dims, scope="target_model")
+model.load()
 
 # epsilon for Epsilon Greedy Algorithm
 epsilon = 1.0
 epsilon_min = 0.1
-epsilon_change = (epsilon - epsilon_min) / 500000
-
+output = []
 #   main loop
 with tf.Session() as sess:
     model.set_session(sess)
@@ -52,36 +62,41 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     #   loop for #of epochs
-    for i in tqdm(range(num_epochs), total=num_epochs):
+    for i in range(num_epochs):
         successes = 0
         total_t += 1
-
+        print("Epochs:", i)
         #   loop for #of_cycles
-        for n in range(num_episodes):
+        for ep in range(MAX_EPISODES):
+            epsilon_change = (epsilon - epsilon_min) / 500000
+            print("Episode:", ep, "Epsilon:", epsilon)
             episode_reward = 0
             num_steps_in_episode = 0
             #   parameter order returned from reset
             #   frame is removed, agent_position, done, goal, object_position
-            _, state, done, goal, _ = env.reset()  # reset environment
-
+            _, state, _, _, _ = env.reset()  # reset environment
+            goal = random.choice(reachable_position)  # sample a random goal from reachable position
             done = False
             while not done:
-                state = np.concatenate((state, goal), axis=0)  # state shape = 1*6
-                action = model.sample_action(state, epsilon)
+                action = model.sample_action(state, goal, epsilon)
 
                 #   Order of variables returned form take_action method
                 #   frame, agent_position, done, reward, obj_agent_dis, visible
-                next_state, done, reward, _, _ = env.take_action(action=action)
+                _, next_state, done, reward = env.take_action(action=action)
 
                 # append to experience replay
-                ep_experience.add(state, action, reward, next_state, done)
+                ep_experience.add(state, action, reward, next_state, done, goal)
                 state = next_state
 
                 episode_reward += reward
 
+                epsilon = max(epsilon - epsilon_change, epsilon_min)
+
             successes += done
 
+
             if her_strategy == "future":
+                print("her")
                 #   HER
                 for t in range(len(ep_experience.memory)):
                     for k in range(Her_samples):
@@ -90,51 +105,45 @@ with tf.Session() as sess:
                         state = ep_experience.memory[t][0]
                         action = ep_experience.memory[t][1]
                         next_state = ep_experience.memory[t][3]
-                        state = np.concatenate((state, goal), axis=0)
-                        next_state = np.concatenate((next_state, goal), axis=0)
                         #   checking success for the virtual_goals
                         #   where the agent position in the next state = virtual_goal = position in the next state
                         done = np.array_equal(next_state, goal)
                         reward = 0 if done else -1
-                        ep_experience_her.add(state, action, reward, next_state, done)
+                        ep_experience_her.add(state, action, reward, next_state, done, goal)
 
-            # Remove oldest experience if replay buffer is full
-            if len(ex_replay_buffer) == MAX_EXPERIENCES:
-                del ex_replay_buffer[0:2]
-
-            ex_replay_buffer.append(ep_experience.memory)
-            ex_replay_buffer.append(ep_experience_her.memory)
+            if len(ex_replay_buffer) > MAX_EXPERIENCES-1:
+                ex_replay_buffer[-MAX_EXPERIENCES:]
+            ex_replay_buffer.extend(ep_experience.memory)
+            ex_replay_buffer.extend(ep_experience_her.memory)
             ep_experience.clear()
             ep_experience_her.clear()
 
         #   training the DQN
         for _ in range(optimistion_steps):
-            states, actions, rewards, next_states, dones = model.sample(ex_replay_buffer, batch_sz)
+            print("optimisation:")
+            states, actions, rewards, next_states, dones, goal_ = model.sample(ex_replay_buffer, batch_sz)
 
             targets = target_model.calculate_targets(next_states=next_states,
                                                      dones=dones,
                                                      rewards=rewards,
-                                                     gamma=gamma)
+                                                     gamma=gamma,
+                                                     goals_=goal_)
             losses = 0
-            loss = model.update(states, actions, targets)
-            losses += loss/optimistion_steps
+            loss = model.update(states, actions, targets, goal_)
+            losses += loss / optimistion_steps
         #   copy target model parameters to the original model
+        print("Copied model parameters to target network. total_t = %s, period = %s" % (
+            total_t, TARGET_UPDATE_PERIOD))
         if total_t % TARGET_UPDATE_PERIOD == 0:
             target_model.copy_from(model)
-            print("Copied model parameters to target network. total_t = %s, period = %s" % (
-                total_t, TARGET_UPDATE_PERIOD))
-
-        #   epsilon decay
-        epsilon = max(epsilon - epsilon_change, epsilon_min)
-
-        episode_rewards[i] = episode_reward
 
         last_100_avg = episode_rewards[max(0, i - 100):i + 1].mean()
         last_100_avgs.append(last_100_avg)
-        print("Episode:", i, "Num steps:", num_steps_in_episode, "Reward:", episode_reward, "loss", losses[-1],
-              "Avg Reward (Last 100):", "%.3f" % last_100_avg, "Epsilon:", "%.3f" % epsilon)
+        print("Episode:", i, "Num steps:", num_steps_in_episode, "Reward:", episode_reward, "losses:", losses,
+              "Avg Reward (Last 100):", "%.3f" % last_100_avg)
 
-        if i % 50 == 0:
+
+        if i % optimistion_steps == 0:
             model.save(i)
         sys.stdout.flush()
 
