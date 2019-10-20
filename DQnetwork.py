@@ -28,8 +28,9 @@ class DQN:
             # (num_samples, height, width, "color")
             # so we need to tranpose later
             self.inputs = tf.placeholder(tf.float32, shape=(None, 3), name="Inputs")
-            self.goals = tf.placeholder(tf.float32, shape=(None, 3), name='Goals')
+            self.goals_ = tf.placeholder(tf.float32, shape=(None, 3), name = "Goals_")
             self.actions = tf.placeholder(tf.int32, shape=(None,), name='actions')
+            self.goals = tf.placeholder(tf.float32, shape=(None, ), name='Goals')
 
             # calculate output and cost
             # # convolutional layers
@@ -46,8 +47,8 @@ class DQN:
             # dense1 =tf.contrib.layers.fully_connected(self.state_goals, self.fc1_dims,
             #                          activation=tf.nn.relu,
             #                          kernel_initializer=tf.variance_scaling_initializer(scale=2))
-
-            dense1 = tf.contrib.layers.fully_connected(self.inputs, self.fc1_dims, tf.nn.relu)
+            state_goals = tf.concat((self.inputs, self.goals_), axis=1)
+            dense1 = tf.contrib.layers.fully_connected(state_goals, self.fc1_dims, tf.nn.relu)
 
             # final output layer
             self.predict_op = tf.contrib.layers.fully_connected(dense1, action_n)
@@ -76,26 +77,28 @@ class DQN:
     def set_session(self, session):
         self.session = session
 
-    def predict(self, states):
-        return self.session.run(self.predict_op, feed_dict={self.inputs: states})
+    def predict(self, states, goals_):
+        return self.session.run(self.predict_op, feed_dict={self.inputs: states,
+                                                            self.goals_: goals_})
 
-    def update(self, states, actions, targets):
+    def update(self, states, actions, targets, goals_):
         c, _ = self.session.run(
             [self.cost, self.train_op],
             feed_dict={
                 self.inputs: states,
                 self.goals: targets,
-                self.actions: actions
+                self.actions: actions,
+                self.goals_: goals_
             }
         )
         return c
 
-    def sample_action(self, state, eps):
+    def sample_action(self, state, goals_, eps):
         """Implements epsilon greedy algorithm"""
         if np.random.random() < eps:
             return np.random.choice(self.action_n)
         else:
-            return np.argmax(self.predict([state])[0])
+            return np.argmax(self.predict([state], [goals_])[0])
 
     def load(self):
         self.saver = tf.train.Saver(tf.global_variables())
@@ -120,13 +123,13 @@ class DQN:
     def sample(self, experience_replay_buffer, batch_size):
         # Sample experiences
         samples = random.sample(experience_replay_buffer, batch_size)
-        states, actions, rewards, next_states, dones = map(np.array, zip(*samples))
+        states, actions, rewards, next_states, dones, goals_ = map(np.array, zip(*samples))
 
-        return states, actions, rewards, next_states, dones
+        return states, actions, rewards, next_states, dones, goals_
 
-    def calculate_targets(self, next_states, dones, rewards, gamma):
+    def calculate_targets(self, next_states, dones, rewards, goals_, gamma):
         # Calculate targets
-        next_Qs = self.predict(next_states)
+        next_Qs = self.predict(next_states, goals_)
         next_Q = np.amax(next_Qs, axis=1)
         targets = rewards + np.invert(dones).astype(np.float32) * gamma * next_Q
 
