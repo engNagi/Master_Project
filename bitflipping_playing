@@ -1,0 +1,34 @@
+import time
+
+import numpy as np
+from Experience_Memory import Episode_experience
+from DQnetwork_bitflipping import DQN
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import sys
+from bitflipping import BitFlip
+
+
+size = 30
+env = BitFlip(reward_type="sparse", n=size)
+
+model = DQN(action_n=size, fcl_dims=512, scope="model")
+
+with tf.Session() as sess:
+    model.set_session(sess)
+    sess.run(tf.global_variables_initializer())
+
+    model.load()
+
+    for _ in range(50):
+        state, goal = env.reset()
+        print("goal  :", np.array_str(goal))
+        for t in range(size):
+            action = model.sample_action(state=state, goals_=goal, eps=0)
+            next_state, reward, done = env.step(action)
+            state = next_state
+            env.render()
+            time.sleep(0.5)
+            if done:
+                break
+        print("Success :", done)
