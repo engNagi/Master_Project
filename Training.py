@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # hyperparameters etc
     gamma = 0.99
     batch_sz = 4
-    num_episodes = 5000
+    num_episodes = 3000
     total_t = 0
     experience_replay_buffer = []
     episode_rewards = np.zeros(num_episodes)
@@ -50,8 +50,12 @@ if __name__ == '__main__':
 
 
     # Create original and target  Networks
-    model = DQN(action_n=action_n, im_height=im_height, im_width=im_width, fcl_dims=512, scope="model")
-    target_model = DQN(action_n=action_n, im_height=im_height, im_width=im_width, fcl_dims=512, scope="target_model")
+    model = DQN(action_n=action_n, im_height=im_height, im_width=im_width,
+                fcl_dims=512,
+                scope="model")
+    target_model = DQN(action_n=action_n, im_height=im_height, im_width=im_width,
+                       fcl_dims=512,
+                       scope="target_model")
 
     with tf.Session() as sess:
         model.set_session(sess)
@@ -100,21 +104,21 @@ if __name__ == '__main__':
             done = False
             while not done:
                 env.render()
-                # Update target network
+                #   Update target network
                 if total_t % TARGET_UPDATE_PERIOD == 0:
                     target_model.copy_from(model)
                     print("Copied model parameters to target network. total_t = %s, period = %s" % (
                         total_t, TARGET_UPDATE_PERIOD))
 
                 # Take action
-                action = model.sample_action(state, epsilon)
+                action = model.sample_action(state,epsilon)
                 obs, reward, done, _ = env.step(action)
                 obs_small = preprocess(obs)
                 next_state = np.append(state[1:], np.expand_dims(obs_small, 0), axis=0)
 
                 episode_reward += reward
 
-                # Remove oldest experience if replay buffer is full
+                # # Remove oldest experience if replay buffer is full
                 if len(experience_replay_buffer) == MAX_EXPERIENCES:
                     experience_replay_buffer.pop(0)
 
