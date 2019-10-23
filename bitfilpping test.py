@@ -1,10 +1,8 @@
-import time
-
 import numpy as np
 from Experience_Memory import Episode_experience
 from DQnetwork_bitflipping import DQN
 import tensorflow as tf
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import sys
 from bitflipping import BitFlip
 
@@ -88,12 +86,13 @@ with tf.Session() as sess:
                         done = np.array_equal(goal, next_state)
                         reward = 0 if done else -1
                         ep_experience.add(state, action, reward, next_state, done, goal)
-
             # Remove oldest experience if replay buffer is full
-            ex_replay_buffer.extend(ep_experience.memory)
-            ep_experience_her.clear()
+            model.remember(ep_experience.memory)
+            ep_experience.clear()
         #   training the DQN
-        mean_loss = DQN.optimize(model, target_model, optimistion_steps, ex_replay_buffer, batch_sz, gamma)
+        mean_loss = model.optimize(model=model, target_model=target_model, buffer=ex_replay_buffer,
+                             optimization_steps=optimistion_steps,
+                             batch_size=batch_sz, gamma=gamma)
         target_model.copy_from(model)
 
         #   epsilon decay
@@ -101,7 +100,7 @@ with tf.Session() as sess:
         losses.append(mean_loss)
         success_rate.append(successes / num_episodes)
         print("\repoch", i + 1, "success rate", success_rate[-1], 'loss %.2f:' % losses[-1],
-              'exploration', epsilon, end=' ' * 10)
+              'exploration', epsilon)
 
         if i % 50 == 0:
             print("Saving the model")
@@ -109,8 +108,8 @@ with tf.Session() as sess:
         sys.stdout.flush()
 
     # Plots
-plt.plot(losses)
-plt.xlabel('episodes')
-plt.ylabel('Losses')
-plt.savefig("losses.png")
-plt.show()
+# plt.plot(losses)
+# plt.xlabel('episodes')
+# plt.ylabel('Losses')
+# plt.savefig("losses.png")
+# plt.show()
