@@ -1,25 +1,25 @@
 import random
 import numpy as np
 import tensorflow as tf
-
+from collections import deque
 
 class DQN:
     def __init__(self, action_n, scope,
                  im_height=180,
                  im_width=160,
                  fcl_dims=256,
+                 buffer_size=50000,
                  save_path='DQN_model/atarix.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
         self.save_path = save_path
-        self.im_height=im_height
+        self.im_height = im_height
         self.im_width = im_width
-        self.fc1_dims =fcl_dims
-        self.memory = []
+        self.fc1_dims = fcl_dims
+        self.buffer = deque()
 
         with tf.variable_scope(scope):
-
             # inputs and targets
             # self.inputs = tf.placeholder(tf.float32, shape=(None, 4, self.im_height, self.im_width),
             #                              name='inputs')
@@ -30,7 +30,7 @@ class DQN:
             self.inputs = tf.placeholder(tf.float32, shape=(None, 30), name="Inputs")
             self.goals_ = tf.placeholder(tf.float32, shape=(None, 30), name="Goals_")
             self.actions = tf.placeholder(tf.int32, shape=(None,), name='actions')
-            self.goals = tf.placeholder(tf.float32, shape=(None, ), name='Goals')
+            self.goals = tf.placeholder(tf.float32, shape=(None,), name='Goals')
 
             # calculate output and cost
             # # convolutional layers
@@ -57,7 +57,7 @@ class DQN:
                                                    reduction_indices=[1])
 
             self.cost = tf.reduce_mean(tf.square(self.goals - selected_action_values))
-            self.train_op = tf.train.AdamOptimizer(1e-3).minimize(self.cost)
+            self.train_op = tf.train.AdamOptimizer(1e-6).minimize(self.cost)
 
     def copy_from(self, other):
         mine = [t for t in tf.trainable_variables() if t.name.startswith(self.scope)]
@@ -126,16 +126,21 @@ class DQN:
         targets = rewards + np.invert(dones).astype(np.float32) * gamma * next_Q
 
         return targets
-    @classmethod
-    def optimize(cls, model, target_model, optimization_steps, experience_replay_buffer, batch_size, gamma):
+
+    def remember(self, ep_experience):
+        self.buffer.extend(ep_experience)
+
+
+    def optimize(self, model, target_model, buffer, optimization_steps, batch_size, gamma):
         losses = 0
-        if len(experience_replay_buffer)< batch_size:
-            return 0
 
         for _ in range(optimization_steps):
+            if len(self.buffer) < batch_size:  # if there's no enough transitions, do nothing
+                return 0
             # sample batches from experiences
-            samples = random.sample(experience_replay_buffer, batch_size)
-            states, actions, rewards, next_states, dones, goals_ = map(np.array, zip(*samples))
+            else:
+                samples = random.sample(self.buffer, batch_size)
+                states, actions, rewards, next_states, dones, goals_ = map(np.array, zip(*samples))
 
             # Calculate targets
             next_Qs = target_model.predict(next_states, goals_)
@@ -147,4 +152,7 @@ class DQN:
             losses += loss
         return losses / optimization_steps
 
-
+    # def remember(self, ep_experience):
+    #     self.memory += ep_experience.memory
+    #     if len(self.memory) > self.buffer_size:
+    #         self.memory = self.memory[-self.buffer_size:]
