@@ -6,6 +6,16 @@
 from ai2thor.controller import Controller, BFSController
 import numpy as np
 import pandas as pd
+import ai2thor.controller
+
+def noop(self):
+    pass
+
+
+ai2thor.controller.Controller.lock_release = noop
+ai2thor.controller.Controller.unlock_release = noop
+ai2thor.controller.Controller.prune_releases = noop
+
 
 #    This axis has “right hand” facing with respect to the forward Z-Axis,
 #    Y-axis pointing upward, z-axis pointing forward, x axis  pointing to the left
@@ -57,7 +67,6 @@ class Environment(object):
                             visibilityDistance=self.visibility_distance,
                             cameraY=self.camera_Y,
                             fieldOfView=self.fov))
-
 
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
 
@@ -133,7 +142,7 @@ class Environment(object):
         first_person_obs = self.ctrl.last_event.frame
         #    Third party_cam "From top"
         third_cam_obs = self.ctrl.last_event.third_party_camera_frames
-        #third_cam_obs = np.squeeze(third_cam_obs, axis=0)
+        # third_cam_obs = np.squeeze(third_cam_obs, axis=0)
         # done condition when the last action was successful inverted
         done = not self.ctrl.last_event.metadata["lastActionSuccess"]
         #   agent position
@@ -148,5 +157,3 @@ class Environment(object):
         controller.search_all_closed(scene)
         reachable_position = pd.DataFrame(controller.grid_points).values
         return reachable_position
-
-
