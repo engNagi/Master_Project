@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 env = Environment(top_view_cam=False)
 
 env.make()
-first_person_obs, agent_position, goal, _, _, _ = env.reset()
+first_person_obs, agent_position, goal, _, _ = env.reset()
 
 done = False
 while not done:
