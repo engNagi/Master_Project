@@ -2,16 +2,20 @@ import numpy as np
 from Experience_Memory import Episode_experience
 from DQnetwork_bitflipping import DQN
 import tensorflow as tf
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import sys
 from bitflipping import BitFlip
 
 #########   bitfliping environment
-size = 30
+size = 50
 env = BitFlip(reward_type="sparse", n=size)
 
 #########################   hyper-parameter
-num_epochs = 250
+num_epochs = 10000
+
+
+
+
 num_episodes = 16
 her_strategy = "future"
 Her_samples = 4
@@ -19,7 +23,6 @@ Her_samples = 4
 # experience replay parameters
 MAX_EXPERIENCES = 10000
 ep_experience = Episode_experience()
-ep_experience_her = Episode_experience()
 ex_replay_buffer = []
 
 # DQN training parameters
@@ -45,7 +48,8 @@ model.load()
 
 # epsilon for Epsilon Greedy Algorithm
 epsilon = 0.2
-epsilon_min = 0.001
+epsilon_min = 0.02
+epsilon_decay = 0.95
 epsilon_change = (epsilon - epsilon_min) / 500
 
 #   main loop
@@ -64,7 +68,7 @@ with tf.Session() as sess:
                 action = model.sample_action(state, goal, epsilon)
                 #   Order of variables returned form take_action method
                 #   frame, agent_position, done, reward, obj_agent_dis, visible
-                next_state, done, reward = env.step(action=action)
+                next_state, reward, done = env.step(action=action)
 
                 # append to experience replay
                 ep_experience.add(state, action, reward, next_state, done, goal)
@@ -78,29 +82,35 @@ with tf.Session() as sess:
                 #   HER
                 for t in range(len(ep_experience.memory)):
                     for k in range(Her_samples):
-                        future_samples = np.random.randint(t, len(ep_experience.memory))
-                        goal = ep_experience.memory[future_samples][3]  # next_state of future
+                        future_samples = np.random.randint(t, len(ep_experience.memory)) # index of the future transitiobn
+                        #future_samples_idx = ep_experience.memory[t+Her_samples]
+                        goal = ep_experience.memory[future_samples][3]  # next_state of the future transition
                         state = ep_experience.memory[t][0]
                         action = ep_experience.memory[t][1]
                         next_state = ep_experience.memory[t][3]
-                        done = np.array_equal(goal, next_state)
+                        done = np.array_equal(next_state, goal)
                         reward = 0 if done else -1
                         ep_experience.add(state, action, reward, next_state, done, goal)
+
             # Remove oldest experience if replay buffer is full
-            model.remember(ep_experience.memory)
+            model.buffer.extend(ep_experience.memory)
             ep_experience.clear()
         #   training the DQN
-        mean_loss = model.optimize(model=model, target_model=target_model, buffer=ex_replay_buffer,
-                             optimization_steps=optimistion_steps,
-                             batch_size=batch_sz, gamma=gamma)
-        target_model.copy_from(model)
+        mean_loss = model.optimize(model=model, target_model=target_model,
+                                   optimization_steps=optimistion_steps,
+                                   batch_size=batch_sz)
+
+        # if i % 75 == 0:
+        print("update Target network")
+        target_model.soft_update_from(model)
+
+        epsilon = max(epsilon * epsilon_decay, epsilon_min)
 
         #   epsilon decay
-        epsilon = max(epsilon - epsilon_change, epsilon_min)
         losses.append(mean_loss)
         success_rate.append(successes / num_episodes)
         print("\repoch", i + 1, "success rate", success_rate[-1], 'loss %.2f:' % losses[-1],
-              'exploration', epsilon)
+              'exploration', epsilon, end=' ' * 10)
 
         if i % 50 == 0:
             print("Saving the model")
@@ -108,8 +118,14 @@ with tf.Session() as sess:
         sys.stdout.flush()
 
     # Plots
-# plt.plot(losses)
-# plt.xlabel('episodes')
-# plt.ylabel('Losses')
-# plt.savefig("losses.png")
-# plt.show()
+plt.plot(losses)
+plt.xlabel('episodes')
+plt.ylabel('Losses')
+plt.savefig("losses.png")
+plt.show()
+
+plt.plot(success_rate)
+plt.xlabel('episodes')
+plt.ylabel('Success rate')
+plt.savefig("Success.png")
+plt.show()
