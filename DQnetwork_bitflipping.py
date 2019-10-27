@@ -3,13 +3,17 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 
+
 class DQN:
     def __init__(self, action_n, scope,
                  im_height=180,
                  im_width=160,
                  fcl_dims=256,
                  buffer_size=50000,
-                 save_path='DQN_model/atarix.ckpt'):
+                 gamma=0.98,
+                 hard_update="False",
+                 save_path='/home/nagi/Desktop/Master_project/working_models/'
+                           'DQN_Bitflipping/DQN_model_bitflipping_trained_model/atarix.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -17,61 +21,48 @@ class DQN:
         self.im_height = im_height
         self.im_width = im_width
         self.fc1_dims = fcl_dims
-        self.buffer = deque()
+        self.buffer_size = buffer_size
+        self.hard_update = hard_update
+        self.gamma = gamma
+        self.buffer = deque(maxlen=self.buffer_size)
 
         with tf.variable_scope(scope):
-            # inputs and targets
-            # self.inputs = tf.placeholder(tf.float32, shape=(None, 4, self.im_height, self.im_width),
-            #                              name='inputs')
 
-            # tensorflow convolution needs the order to be:
-            # (num_samples, height, width, "color")
-            # so we need to tranpose later
-            self.inputs = tf.placeholder(tf.float32, shape=(None, 30), name="Inputs")
-            self.goals_ = tf.placeholder(tf.float32, shape=(None, 30), name="Goals_")
+            self.inputs = tf.placeholder(tf.float32, shape=(None, 50), name="Inputs")
+            self.goals_ = tf.placeholder(tf.float32, shape=(None, 50), name="Goals_")
             self.actions = tf.placeholder(tf.int32, shape=(None,), name='actions')
             self.goals = tf.placeholder(tf.float32, shape=(None,), name='Goals')
 
-            # calculate output and cost
-            # # convolutional layers
-            # Z = self.inputs / 255.0
-            # Z = tf.transpose(Z, [0, 2, 3, 1])
-            # conv1 = tf.contrib.layers.conv2d(Z, 32, 8, 4, activation_fn=tf.nn.relu)
-            #
-            # conv2 = tf.contrib.layers.conv2d(conv1, 64, 4, 2, activation_fn=tf.nn.relu)
-            #
-            # conv3 = tf.contrib.layers.conv2d(conv2, 64, 3, 1, activation_fn=tf.nn.relu)
-            #
-            # # fully connected layers
-            # flat = tf.contrib.layers.flatten(conv3)
-            # dense1 =tf.contrib.layers.fully_connected(self.state_goals, self.fc1_dims,
-            #                          activation=tf.nn.relu,
-            #                          kernel_initializer=tf.variance_scaling_initializer(scale=2))
             state_goals = tf.concat((self.inputs, self.goals_), axis=1)
-            dense1 = tf.contrib.layers.fully_connected(state_goals, self.fc1_dims, tf.nn.relu)
+            dense1 = tf.layers.dense(state_goals, self.fc1_dims, activation=tf.nn.relu, trainable=True)
 
             # final output layer
-            self.predict_op = tf.contrib.layers.fully_connected(dense1, action_n)
+            self.predict_op = tf.layers.dense(dense1, action_n, trainable=True)
 
             selected_action_values = tf.reduce_sum(self.predict_op * tf.one_hot(self.actions, self.action_n),
                                                    reduction_indices=[1])
 
-            self.cost = tf.reduce_mean(tf.square(self.goals - selected_action_values))
-            self.train_op = tf.train.AdamOptimizer(1e-6).minimize(self.cost)
+            self.clip_goals = tf.clip_by_value(self.goals, -1/(1-self.gamma), 0)
 
-    def copy_from(self, other):
+            self.cost = tf.reduce_mean(tf.square(self.clip_goals - selected_action_values))
+
+            self.train_op = tf.train.AdamOptimizer(1e-3).minimize(self.cost)
+
+    def hard_update_from(self, other):
         mine = [t for t in tf.trainable_variables() if t.name.startswith(self.scope)]
         mine = sorted(mine, key=lambda v: v.name)
         theirs = [t for t in tf.trainable_variables() if t.name.startswith(other.scope)]
         theirs = sorted(theirs, key=lambda v: v.name)
 
-        ops = []
-        for p, q in zip(mine, theirs):
-            actual = self.session.run(q)
-            op = p.assign(actual)
-            ops.append(op)
+        self.session.run([v_t.assign(v) for v_t, v in zip(mine, theirs)])
 
-        self.session.run(ops)
+    def soft_update_from(self, other, tau=0.95):
+        mine = [t for t in tf.trainable_variables() if t.name.startswith(self.scope)]
+        mine = sorted(mine, key=lambda v: v.name)
+        theirs = [t for t in tf.trainable_variables() if t.name.startswith(other.scope)]
+        theirs = sorted(theirs, key=lambda v: v.name)
+
+        self.session.run([v_t.assign(v_t * (1. - tau) + v * tau) for v_t, v in zip(mine, theirs)])
 
     def set_session(self, session):
         self.session = session
@@ -119,19 +110,10 @@ class DQN:
         self.saver.save(self.session, self.save_path, global_step=n)
         print("SAVED MODEL #{}".format(n))
 
-    def calculate_targets(self, next_states, dones, rewards, goals_, gamma):
-        # Calculate targets
-        next_Qs = self.predict(next_states, goals_)
-        next_Q = np.amax(next_Qs, axis=1)
-        targets = rewards + np.invert(dones).astype(np.float32) * gamma * next_Q
-
-        return targets
-
     def remember(self, ep_experience):
         self.buffer.extend(ep_experience)
 
-
-    def optimize(self, model, target_model, buffer, optimization_steps, batch_size, gamma):
+    def optimize(self, model, target_model, optimization_steps, batch_size):
         losses = 0
 
         for _ in range(optimization_steps):
@@ -145,14 +127,9 @@ class DQN:
             # Calculate targets
             next_Qs = target_model.predict(next_states, goals_)
             next_Q = np.amax(next_Qs, axis=1)
-            targets = rewards + np.invert(dones).astype(np.float32) * gamma * next_Q
-
+            targets = rewards + np.invert(dones).astype(np.float32) * self.gamma * next_Q
             #   Calculate network loss
             loss = model.update(states, actions, targets, goals_)
             losses += loss
         return losses / optimization_steps
 
-    # def remember(self, ep_experience):
-    #     self.memory += ep_experience.memory
-    #     if len(self.memory) > self.buffer_size:
-    #         self.memory = self.memory[-self.buffer_size:]
