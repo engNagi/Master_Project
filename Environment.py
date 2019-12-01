@@ -51,14 +51,14 @@ class Environment(object):
         self.third_party_cam = third_party_cam
         self.full_scrn = full_scrn
 
-        self.ctrl = Controller(fullscreen=self.full_scrn)
+        self.ctrl = Controller()
 
     def make(self):
-        self.ctrl.start()
+        self.ctrl.start(x_display="50")#
 
     def reset(self):
         self.ctrl.reset(self.scene)
-        self.ctrl.step(dict(action="ToggleMapView"))
+        #self.ctrl.step(dict(action="ToggleMapView"))
         self.ctrl.step(dict(action="Initialize",
                             gridSize=self.grid_size,
                             renderDepthImage=self.depth_image,
@@ -149,11 +149,3 @@ class Environment(object):
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
 
         return first_person_obs, agent_position, done, reward
-
-    @classmethod
-    def get_reachable_position(cls, scene):
-        controller = BFSController()
-        controller.start()
-        controller.search_all_closed(scene)
-        reachable_position = pd.DataFrame(controller.grid_points).values
-        return reachable_position
