@@ -11,7 +11,7 @@ size = 50
 env = BitFlip(reward_type="sparse", n=size)
 
 #########################   hyper-parameter
-num_epochs = 10000
+num_epochs = 2000
 
 
 
@@ -25,7 +25,7 @@ MAX_EXPERIENCES = 10000
 ep_experience = Episode_experience()
 ex_replay_buffer = []
 
-# DQN training parameters
+# DQN Bathrooms parameters
 batch_sz = 128
 gamma = 0.99
 fcl_dims = 256
@@ -95,7 +95,7 @@ with tf.Session() as sess:
             # Remove oldest experience if replay buffer is full
             model.buffer.extend(ep_experience.memory)
             ep_experience.clear()
-        #   training the DQN
+        #   Bathrooms the DQN
         mean_loss = model.optimize(model=model, target_model=target_model,
                                    optimization_steps=optimistion_steps,
                                    batch_size=batch_sz)

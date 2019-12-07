@@ -29,7 +29,7 @@ ep_experience = Episode_experience()
 ep_experience_her = Episode_experience()
 ex_replay_buffer = []
 
-# DQN training parameters
+# DQN Bathrooms parameters
 batch_sz = 4
 gamma = 0.99
 fcl_dims = 512
@@ -118,7 +118,7 @@ with tf.Session() as sess:
             ep_experience.clear()
             ep_experience_her.clear()
 
-        #   training the DQN
+        #   Bathrooms the DQN
         for _ in range(optimistion_steps):
             print("optimisation:")
             states, actions, rewards, next_states, dones, goal_ = model.sample(ex_replay_buffer, batch_sz)

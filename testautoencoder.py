@@ -133,7 +133,7 @@ def run():
         # The resulting network architecture from adding a decoder on top of the given vgg model
         model_output = layers(layer3, layer4, layer7, num_classes)
 
-        # Returns the output logits, training operation and cost operation to be used
+        # Returns the output logits, Bathrooms operation and cost operation to be used
         # - logits: each row represents a pixel, each column a class
         # - train_op: function used to get the right parameters to the model to correctly label the pixels
         # - cross_entropy_loss: function outputting the cost which we are minimizing, lower cost should yield higher accuracy
@@ -143,7 +143,7 @@ def run():
         session.run(tf.global_variables_initializer())
         session.run(tf.local_variables_initializer())
 
-        print("Model build successful, starting training")
+        print("Model build successful, starting Bathrooms")
 
         # Train the neural network
         train_nn(session, EPOCHS, BATCH_SIZE, get_batches_fn,
