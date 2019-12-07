@@ -14,10 +14,10 @@ action_n = 4  # env.action_space.n
 
 
 def preprocess(img):
-    #img_temp = img[31:195]  # Choose the important area of the image
+    # img_temp = img[31:195]  # Choose the important area of the image
     img_temp = img.mean(axis=2)  # Convert to Grayscale#
     # Downsample image using nearest neighbour interpolation
-    #img_temp = imresize(img_temp, size=(im_height, im_width), interp='nearest')
+    # img_temp = imresize(img_temp, size=(im_height, im_width), interp='nearest')
     return img_temp
 
 
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                 next_state = np.append(state[1:], np.expand_dims(obs_small, 0), axis=0)
 
                 episode_reward += reward
-                num_steps_in_episode +=1
+                num_steps_in_episode += 1
 
                 if done:
                     print("Episode:", episode, "Score", total_rewards)

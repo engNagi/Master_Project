@@ -1,12 +1,15 @@
 # TODO
 #  genalize the goal such that returns the position where
 #  the corresponding object would be visible to the agent
+#   Creating dataset for the AVE
+#   Train The AVE with the gathered dataset
 
 
 from ai2thor.controller import Controller, BFSController
 import numpy as np
 import pandas as pd
 import ai2thor.controller
+
 
 def noop(self):
     pass
@@ -23,7 +26,7 @@ class Environment(object):
     def __init__(self,
                  fov=60.0,
                  camera_Y=0.675,
-                 grid_size=0.25,
+                 grid_size=0.15,
                  visibility_distance=1.5,
                  player_screen_width=300,
                  player_screen_height=300,
@@ -33,10 +36,10 @@ class Environment(object):
                  top_view_cam=False,
                  object_image=False,
                  third_party_cam=False,
-                 scene="FloorPlan220",
+                 #  scene="FloorPlan220",
                  object_name="Television"):
 
-        self.scene = scene
+        # self.scene = scene
         self.grid_size = grid_size
         self.depth_image = depth_image
         self.class_image = class_image
@@ -50,15 +53,20 @@ class Environment(object):
         self.top_view_cam = top_view_cam
         self.third_party_cam = third_party_cam
         self.full_scrn = full_scrn
+        self.orientations = [0.0, 90.0, 180.0, 270.0, 360.0]
 
-        self.ctrl = Controller(fullscreen=self.full_scrn)
+
+        self.ctrl = Controller()
 
     def make(self):
         self.ctrl.start()
 
-    def reset(self):
-        self.ctrl.reset(self.scene)
-        self.ctrl.step(dict(action="ToggleMapView"))
+    def reset(self, scene, random_init=False):
+        self.ctrl.reset(scene)
+
+        if self.top_view_cam:
+            self.ctrl.step(dict(action="ToggleMapView"))
+
         self.ctrl.step(dict(action="Initialize",
                             gridSize=self.grid_size,
                             renderDepthImage=self.depth_image,
@@ -67,8 +75,19 @@ class Environment(object):
                             visibilityDistance=self.visibility_distance,
                             cameraY=self.camera_Y,
                             fieldOfView=self.fov))
+        if random_init:
+            reachable_positions = self.get_reachable_position()
+            idx = np.random.choice(len(reachable_positions))
+            angle = np.random.choice(self.orientations)
+            x_pos = reachable_positions[idx][0]
+            y_pos = reachable_positions[idx][1]
+            z_pos = reachable_positions[idx][2]
+            self.ctrl.step(dict(action="TeleportFull", x=x_pos, y=y_pos,
+                                z=z_pos, rotation=angle, horizon=0.0))
 
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
+        agent_rotation = np.array(list(self.ctrl.last_event.metadata["agent"]["rotation"].values()))
+        agent_pose = np.concatenate((agent_position, agent_rotation), axis=0)
 
         self.obj = self.ctrl.last_event.metadata["objects"]
 
@@ -81,7 +100,8 @@ class Environment(object):
 
         first_person_obs = self.ctrl.last_event.frame
 
-        return first_person_obs, agent_position, self.object_name, self.obj_pos, self.obj_agent_dis
+        return first_person_obs, agent_position, agent_pose, \
+               self.object_name, self.obj_pos, self.obj_agent_dis
 
     def take_action(self, action):
         #   move right
@@ -150,10 +170,6 @@ class Environment(object):
 
         return first_person_obs, agent_position, done, reward
 
-    @classmethod
-    def get_reachable_position(cls, scene):
-        controller = BFSController()
-        controller.start()
-        controller.search_all_closed(scene)
-        reachable_position = pd.DataFrame(controller.grid_points).values
-        return reachable_position
+    def get_reachable_position(self):
+        self.ctrl.step(dict(action='GetReachablePositions'))
+        return pd.DataFrame(self.ctrl.last_event.metadata["reachablePositions"]).values

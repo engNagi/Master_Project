@@ -1,15 +1,11 @@
 import time
-
 import numpy as np
-from Experience_Memory import Episode_experience
-from DQnetwork_bitflipping import DQN
 import tensorflow as tf
-import matplotlib.pyplot as plt
-import sys
+from DQnetwork_bitflipping import DQN
 from bitflipping import BitFlip
 
 
-size = 30
+size = 50
 env = BitFlip(reward_type="sparse", n=size)
 
 model = DQN(action_n=size, fcl_dims=512, scope="model")

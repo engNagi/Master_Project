@@ -4,16 +4,15 @@ import tensorflow as tf
 from collections import deque
 
 
-class DQN:
+class DQN(object):
     def __init__(self, action_n, scope,
                  im_height=180,
                  im_width=160,
                  fcl_dims=256,
                  buffer_size=50000,
                  gamma=0.98,
-                 hard_update="False",
-                 save_path='/home/nagi/Desktop/Master_project/working_models/'
-                           'DQN_Bitflipping/DQN_model_bitflipping_trained_model/atarix.ckpt'):
+                 save_path='/Volumes/Win/thesis/bitflipping_model_trained/DQN_model'
+                           '/atarix.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -22,7 +21,6 @@ class DQN:
         self.im_width = im_width
         self.fc1_dims = fcl_dims
         self.buffer_size = buffer_size
-        self.hard_update = hard_update
         self.gamma = gamma
         self.buffer = deque(maxlen=self.buffer_size)
 
@@ -74,12 +72,11 @@ class DQN:
     def update(self, states, actions, targets, goals_):
         c, _ = self.session.run(
             [self.cost, self.train_op],
-            feed_dict={
-                self.inputs: states,
-                self.goals: targets,
-                self.actions: actions,
-                self.goals_: goals_
-            }
+            feed_dict={self.inputs: states,
+                       self.goals: targets,
+                       self.actions: actions,
+                       self.goals_: goals_
+                       }
         )
         return c
 
