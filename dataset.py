@@ -1,7 +1,7 @@
 import numpy as np
 import random
 import ai2thor.controller
-from Environment import Environment
+from Environment_dataset_generation import Environment
 
 _BATCH_SIZE = 20  # 16
 _NUM_BATCHES = 10  # 16

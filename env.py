@@ -1,4 +1,4 @@
-from Environment import Environment
+from Environment_dataset_generation import Environment
 import numpy as np
 import matplotlib.pyplot as plt
 
