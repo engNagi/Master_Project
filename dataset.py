@@ -3,9 +3,9 @@ import random
 import ai2thor.controller
 from Environment import Environment
 
-_BATCH_SIZE = 10  # 16
+_BATCH_SIZE = 20  # 16
 _NUM_BATCHES = 10  # 16
-_TIME_STEPS = 150  # 150
+_TIME_STEPS = 250  # 150
 
 def generate_scene_name():
     scene_name_list = []
@@ -43,7 +43,7 @@ for scene in generate_scene_name():
             obs_data.append(observation)
 
     if int(x) in range(1, 21):
-        np.save('/Volumes/WIN/Kitchens/training/VAE_{}'.format(scene), obs_data)
+        np.save('/Volumes/WIN/Kitchens/Bathrooms/VAE_{}'.format(scene), obs_data)
         obs_data = None
 
     elif int(x) in range(21, 28):
@@ -55,7 +55,7 @@ for scene in generate_scene_name():
         obs_data = None
 
     elif int(x) in range(201, 221):
-        np.save('/Volumes/WIN/LivingRoom/training/VAE_{}'.format(scene), obs_data)
+        np.save('/Volumes/WIN/LivingRoom/Bathrooms/VAE_{}'.format(scene), obs_data)
         obs_data = None
 
     elif int(x) in range(221, 228):
@@ -67,7 +67,7 @@ for scene in generate_scene_name():
         obs_data = None
 
     elif int(x) in range(301, 321):
-        np.save('/Volumes/WIN/Bedrooms/training/VAE_{}'.format(scene), obs_data)
+        np.save('/Volumes/WIN/Bedrooms/Bathrooms/VAE_{}'.format(scene), obs_data)
         obs_data = None
 
     elif int(x) in range(321, 328):
@@ -79,7 +79,7 @@ for scene in generate_scene_name():
         obs_data = None
 
     elif int(x) in range(401, 421):
-        np.save('/Volumes/WIN/Bathrooms/training/VAE_{}'.format(scene), obs_data)
+        np.save('/Volumes/WIN/Bathrooms/Bathrooms/VAE_{}'.format(scene), obs_data)
         obs_data = None
 
     elif int(x) in range(421, 428):
