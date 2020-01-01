@@ -93,7 +93,7 @@ def train_vae():
     try:
         while True:
             images = next(training_data)
-            _, loss_value, summary = sess.run([train_op, network.loss, network.merged],
+            loss_value, summary = sess.run([train_op, network.loss, network.merged],
                                               feed_dict={network.image: images})
             writer.add_summary(summary, step)
 

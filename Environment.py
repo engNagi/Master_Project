@@ -54,7 +54,7 @@ class Environment(object):
         self.ctrl = Controller()
 
     def make(self):
-        self.ctrl.start(x_display="50")#
+        self.ctrl.start(x_display="51")#x_display="50"
 
     def reset(self):
         self.ctrl.reset(self.scene)

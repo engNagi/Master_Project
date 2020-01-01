@@ -1,6 +1,9 @@
 <component name="ProjectDictionaryState">
   <dictionary name="sjmonagi">
     <words>
+      <w>autoencoder</w>
+      <w>conv</w>
+      <w>logits</w>
       <w>preprocessing</w>
       <w>resnet</w>
     </words>
