@@ -21,7 +21,7 @@ validation_period = 5000
 class Network(object):
     # Create model
     def __init__(self):
-        self.save_path = 'Autoencoder_2_add/CNN_AE.ckpt'
+        self.save_path = '/media/nagi/Volume/Autoencoder_2_add/CNN_AE.ckpt'
         self.image = tf.placeholder(tf.float32, [None, 300, 300, 3], name='image')
         self.resized_image = tf.image.resize_images(self.image, [256, 256])
         self.normalized_image = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), self.resized_image)
@@ -30,8 +30,8 @@ class Network(object):
         #                                                             self.resized_image[2],
         #                                                             self.resized_image[3]])
 
-        self.z_mu = self.encoder(self.normalized_image)
-        self.reconstructions = self.decoder(self.z_mu)
+        self.feature_vector = self.encoder(self.normalized_image)
+        self.reconstructions = self.decoder(self.feature_vector)
 
         self.loss = self.compute_loss()
         optimizer = tf.train.AdamOptimizer(1e-3)
@@ -319,12 +319,14 @@ def train_vae():
 def load_autoencoder():
     AE_CNN = tf.Graph()
     with AE_CNN.as_default():
-        AE_CNN_sess = tf.Session(graph=AE_CNN)
         network = Network()
-        network.set_session(AE_CNN_sess)
-        init = tf.global_variables_initializer()
-        AE_CNN_sess.run(init)
-        network.load()
+    AE_CNN_sess = tf.Session(graph=AE_CNN)
+    network.set_session(AE_CNN_sess)
+    with AE_CNN_sess.as_default():
+        with AE_CNN.as_default():
+            tf.global_variables_initializer().run()
+            network.load()
+
         return AE_CNN_sess, network
 
 

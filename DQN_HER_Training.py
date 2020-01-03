@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from autoencoder import Network
 from autoencoder import load_autoencoder
 from DQN_HER import DQN
-from Experience_Memory import Episode_experience
+from Her_episodes_experiences import Episode_experience
 from Environment_dataset_generation import Environment
 
 #########   bitfliping environment

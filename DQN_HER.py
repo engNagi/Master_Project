@@ -121,7 +121,7 @@ class DQN(object):
 
     def optimize(self, model, target_model, optimization_steps, batch_size):
         losses = 0
-
+        rnn_stat_train = (np.zeros([batch_size, model.nodes_num]), np.zeros([batch_size, self.nodes_num]))
         for _ in range(optimization_steps):
             if len(self.buffer) < batch_size:  # if there's no enough transitions, do nothing
                 return 0
