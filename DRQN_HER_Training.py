@@ -17,7 +17,7 @@ np.random.seed(123)
 action_n = 6
 #########################   hyper-parameter
 num_epochs = 10
-num_episodes = 1000
+num_episodes = 10000
 max_episode_length = 50
 her_strategy = "future"
 her_samples = 4
@@ -95,8 +95,9 @@ with drqn_sess.as_default():
                                                          rnn_state=rnn_state,
                                                          obs_pos_state=obs_pos_state)
 
-                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _ = env.step(action, obj_agent_dis)
-
+                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collide = env.step(action, obj_agent_dis)
+                if visible and collide:
+                    print(" \nstep:", i, "visibility:", visible, ", collide:", collide, end=' ' * 10)
                 features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
                                                     feed_dict={ae.image: obs_state[None, :, :, :]})
                 features_ = np.squeeze(features_, axis=0)
@@ -120,16 +121,16 @@ with drqn_sess.as_default():
             ep_experience.clear()
 
             #   Optimizing
-            if n % 2 == 0:
-                print("optimizing")
+            if n % 5 == 0 and n > 0:
+                #print("optimizing")
                 mean_loss, drqn_summary = model.optimize(model=model,
                                                          batch_size=batch_size,
                                                          trace_length=trace_length,
                                                          target_model=target_model,
                                                          optimization_steps=optimistion_steps)
                 model.log(encoder_summary=ae_summary, drqn_summary=drqn_summary)
-                print("update Target network")
-                target_model.soft_update_from(model)
+            #print("update Target network")
+            target_model.soft_update_from(model)
             #   Updating Main model
             if n % 50 == 0:
                 print("Saving")
@@ -141,8 +142,7 @@ with drqn_sess.as_default():
             losses.append(mean_loss)
             success_rate.append(successes / num_episodes)
 
-            print("\repisode", n + 1, "success rate", success_rate[-1], 'loss %.2f:' % losses[-1],
-                  'exploration', epsilon, "visible", visible, end=' ' * 10)
+            print("\repisode:", n + 1, "success rate:", success_rate[-1], 'loss %.2f:' % losses[-1], end=' ' * 10)
 
     # Plots
     plt.plot(losses)
