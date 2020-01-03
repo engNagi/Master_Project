@@ -3,10 +3,9 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from autoencoder import Network
 from autoencoder import load_autoencoder
-from DQN_HER import DQN
-from Her_episodes_experiences import Episode_experience
+from aux_code.DQN_HER import DQN
+from Her_episodes_experiences import Her_episodes_experiences
 from Environment_dataset_generation import Environment
 
 #########   bitfliping environment
@@ -19,7 +18,7 @@ Her_samples = 4
 
 # experience replay parameters
 MAX_EXPERIENCES = 10000
-ep_experience = Episode_experience()
+ep_experience = Her_episodes_experiences()
 ex_replay_buffer = []
 
 # DQN Bathrooms parameters
@@ -75,7 +74,7 @@ with tf.Session() as session:
 
                 #   Order of variables returned form take_action method
                 #   frame, agent_position, done, reward, obj_agent_dis, visible
-                obs_state_, _, pos_state_, done, reward, obj_ag_dis_ = env.modified_take_action(action, obj_ag_dis, object_ag_dis_)
+                obs_state_, _, pos_state_, done, reward, obj_ag_dis_ = env.step(action, obj_ag_dis, object_ag_dis_)
                 features_ = sess.run(autoencoder.z_mu, feed_dict={autoencoder.image: obs_state[None, :, :, :]})
                 features_ = np.squeeze(features_, axis=0)
                 # append to experience replay
