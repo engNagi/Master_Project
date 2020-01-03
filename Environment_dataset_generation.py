@@ -1,14 +1,11 @@
-# TODO
-#  genalize the goal such that returns the position where
-#  the corresponding object would be visible to the agent
-#   Creating dataset for the AVE
-#   Train The AVE with the gathered dataset
-
-
-from ai2thor.controller import Controller, BFSController
+import random
 import numpy as np
 import pandas as pd
 import ai2thor.controller
+from ai2thor.controller import Controller, BFSController
+
+random.seed(123)
+np.random.seed(123)
 
 
 def noop(self):
@@ -37,7 +34,9 @@ class Environment(object):
                  top_view_cam=False,
                  object_image=False,
                  third_party_cam=False,
-                 #  scene="FloorPlan220",
+                 random_init=False,
+                 random_goals=False,
+                 scene="FloorPlan220",
                  object_name="Television"):
 
         # self.scene = scene
@@ -48,22 +47,26 @@ class Environment(object):
         self.visibility_distance = visibility_distance
         self.camera_Y = camera_Y
         self.fov = fov
+        self.scene = scene
         self.object_name = object_name
         self.player_screen_width = player_screen_width
         self.player_screen_height = player_screen_height
         self.top_view_cam = top_view_cam
         self.third_party_cam = third_party_cam
         self.full_scrn = full_scrn
+        self.random_init = random_init
         self.orientations = [0.0, 90.0, 180.0, 270.0, 360.0]
         self.action_n = action_n
+        self.random_goal = random_goals
 
-        self.ctrl = Controller() # headless=True
+        self.ctrl = Controller()  # headless=True
 
     def make(self):
         self.ctrl.start()
+        self.ctrl.reset(self.scene)
 
-    def reset(self, scene, random_init=False):
-        self.ctrl.reset(scene)
+    def reset(self):
+        self.ctrl.reset(self.scene)
 
         if self.top_view_cam:
             self.ctrl.step(dict(action="ToggleMapView"))
@@ -76,33 +79,22 @@ class Environment(object):
                             visibilityDistance=self.visibility_distance,
                             cameraY=self.camera_Y,
                             fieldOfView=self.fov))
-        if random_init:
-            reachable_positions = self.get_reachable_position()
-            idx = np.random.choice(len(reachable_positions))
-            angle = np.random.choice(self.orientations)
-            x_pos = reachable_positions[idx][0]
-            y_pos = reachable_positions[idx][1]
-            z_pos = reachable_positions[idx][2]
-            self.ctrl.step(dict(action="TeleportFull", x=x_pos, y=y_pos,
-                                z=z_pos, rotation=angle, horizon=0.0))
 
-        agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
-        agent_rotation = np.array(list(self.ctrl.last_event.metadata["agent"]["rotation"].values()))
-        agent_pose = np.concatenate((agent_position, agent_rotation), axis=0)
+        if self.random_init:
+            agent_random_pose = self.agent_random_init()
 
-        self.obj = self.ctrl.last_event.metadata["objects"]
+        if self.random_goal:
+            random_goal_position = self.random_goal_position()
 
-        for obj in self.obj:
-            if self.object_name in obj["name"]:
-                obj_ = obj
-        self.obj_pos = obj["position"]
-        self.visible = obj["visible"]
-        self.obj_agent_dis = obj["distance"]
+        agent_position, agent_rotation, agent_pose = self.agent_properties()
+
+        #   object position, visibility nad distance from agent to specified object
+        obj_position, obj_visibility, obj_agent_distance = self.object_properties()
+        goal = list(obj_position.values())
 
         first_person_obs = self.ctrl.last_event.frame
-        goal = list(self.obj_pos.values())
-        return first_person_obs, agent_position, agent_pose, \
-               self.object_name, goal, self.obj_agent_dis
+
+        return first_person_obs, agent_position, goal, obj_agent_distance, agent_pose, self.object_name
 
     def take_action(self, action):
         #   move right
@@ -205,126 +197,59 @@ class Environment(object):
 
         return first_person_obs, agent_pose, agent_position, done, reward
 
-    def modified_take_action(self, action, obj_agent_dis_1, obj_agent_dist):
+    def step(self, action, obj_agent_dist):
         #   move right
         if action == 0:
             self.ctrl.step(dict(action="MoveRight"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
         #   right rotate
         elif action == 1:
             self.ctrl.step(dict(action='RotateRight'))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
         #   left rotate
         elif action == 2:
             self.ctrl.step(dict(action="RotateLeft"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
         #   move left
         elif action == 3:
             self.ctrl.step(dict(action='MoveLeft'))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
         #   move Ahead
         elif action == 4:
             self.ctrl.step(dict(action="MoveAhead"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
         #   Move back
-        elif action == 5:  # move_back action
+        elif action == 5:
             self.ctrl.step(dict(action="MoveBack"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
-        elif action == 6:  # crouch action
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
+        #   Crouch
+        elif action == 6:
             self.ctrl.step(dict(action="Crouch"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
-        elif action == 7:  # stand action
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
+        #   Stand
+        elif action == 7:
             self.ctrl.step(dict(action="Stand"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
-        elif action == 8:  # lookup action
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
+        #   Look up
+        elif action == 8:
             self.ctrl.step(dict(action="LookUp"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
-        elif action == 9:  # lookdown action
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
+        #   Look down
+        elif action == 9:
             self.ctrl.step(dict(action="LookDown"))
-            if not self.ctrl.last_event.metadata["lastActionSuccess"]:
-                reward = -1
-            elif self.visible:
-                reward = 1
-            elif obj_agent_dis_1 < obj_agent_dist:
-                reward = obj_agent_dist - obj_agent_dis_1
-            else:
-                reward = 0
-        #   1st person camera
-        #    Third party_cam "From top"
-        #third_cam_obs = self.ctrl.last_event.third_party_camera_frames
-        # third_cam_obs = np.squeeze(third_cam_obs, axis=0)
-        # done condition when the last action was successful inverted
-        first_person_obs = self.ctrl.last_event.frame
-        done = not self.ctrl.last_event.metadata["lastActionSuccess"]
+            reward, done, visible, obj_agent_dis_, first_person_obs = self.post_action_state(obj_agent_dist)
+
         #   agent position
+        agent_position, agent_rotation, agent_pose = self.agent_properties()
+
+        return first_person_obs, agent_position, done, reward, obj_agent_dis_, visible, agent_pose
+
+    def agent_properties(self):
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
         agent_rotation = np.array(list(self.ctrl.last_event.metadata["agent"]["rotation"].values()))
         agent_pose = np.concatenate((agent_position, agent_rotation), axis=0)
 
-        return first_person_obs, agent_pose, agent_position, done, reward, self.obj_agent_dis
+        return agent_position, agent_rotation, agent_pose
 
     def get_reachable_position(self):
         self.ctrl.step(dict(action='GetReachablePositions'))
@@ -332,3 +257,51 @@ class Environment(object):
 
     def action_sampler(self):
         return np.random.choice(self.action_n)
+
+    def object_properties(self):
+        self.obj = self.ctrl.last_event.metadata["objects"]
+        for obj in self.obj:
+            if self.object_name in obj["name"]:
+                obj_ = obj
+        obj_position = obj["position"]
+        obj_visibility = obj["visible"]
+        obj_agent_distance = obj["distance"]
+
+        return obj_position, obj_visibility, obj_agent_distance
+
+    def agent_random_init(self):
+        reachable_positions = self.get_reachable_position()
+        idx = np.random.choice(len(reachable_positions))
+        angle = np.random.choice(self.orientations)
+        x_pos = reachable_positions[idx][0]
+        y_pos = reachable_positions[idx][1]
+        z_pos = reachable_positions[idx][2]
+        agent_pose = self.ctrl.step(dict(action="TeleportFull", x=x_pos, y=y_pos,
+                                         z=z_pos, rotation=angle, horizon=0.0))
+
+        return agent_pose
+
+    def random_goal_position(self):
+        positions = self.get_reachable_position()
+        idx = np.random.choice(len(positions))
+        position = positions[idx]
+        return position
+
+    def post_action_state(self, obj_agent_dist):
+        _, visible, obj_agent_dis_ = self.object_properties()
+        first_person_obs = self.ctrl.last_event.frame
+        if not self.ctrl.last_event.metadata["lastActionSuccess"]:
+            reward = -1
+            done = False
+        elif visible:
+            reward = 0
+            done = True
+        elif obj_agent_dis_ < obj_agent_dist:
+            reward = 1 - (obj_agent_dist - obj_agent_dis_)
+            done = False
+        else:
+            reward = -1
+            done = False
+
+        return reward, done, visible, obj_agent_dis_, first_person_obs
+

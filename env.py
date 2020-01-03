@@ -5,7 +5,7 @@ from PIL import Image
 
 
 
-env = Environment(top_view_cam=False)
+env = Environment(top_view_cam=False, scene="FloorPlan220")
 
 env.make()
 first_person_obs, agent_position, object_name, object_position, object_agent_dis = env.reset()
