@@ -297,7 +297,7 @@ class Environment(object):
             reward = 0
             done = True
         elif obj_agent_dis_ < obj_agent_dist:
-            reward = 1 - (obj_agent_dist - obj_agent_dis_)
+            reward = -1 + (obj_agent_dist - obj_agent_dis_)
             done = False
         else:
             reward = -1
