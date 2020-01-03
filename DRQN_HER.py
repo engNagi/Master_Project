@@ -15,7 +15,7 @@ class DRQN(object):
                  buffer_size=50000,
                  gamma=0.98,
                  nodes_num=518,
-                 save_path='/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
+                 save_path='/home/nagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -185,7 +185,7 @@ class DRQN(object):
         return losses / optimization_steps, summary
 
     def log(self, encoder_summary, drqn_summary):
-        encoder_writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/encoder")
+        encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
         encoder_writer.add_summary(encoder_summary)
-        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/Train")
+        writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train")
         writer.add_summary(drqn_summary)
