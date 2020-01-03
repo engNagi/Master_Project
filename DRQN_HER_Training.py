@@ -9,13 +9,15 @@ from DRQN_HER import DRQN
 from Her_episodes_experiences import Her_episodes_experiences
 from Environment_dataset_generation import Environment
 
+
 random.seed(123)
 np.random.seed(123)
 
 #########   bitfliping environment
 action_n = 6
 #########################   hyper-parameter
-num_episodes = 10000
+num_epochs = 10
+num_episodes = 1000
 max_episode_length = 50
 her_strategy = "future"
 her_samples = 4
@@ -41,7 +43,7 @@ success_rate = []
 episode_reward = 0
 
 #   environment initialization
-env = Environment(random_goals=True)
+env = Environment(random_goals=True, random_init=True)
 env.make()
 
 #   Autoenconder
@@ -71,7 +73,6 @@ with drqn_sess.as_default():
     with drqn_graph.as_default():
         tf.global_variables_initializer().run()
         model.load()
-
         # loop for #of_cycles
         successes = 0
         for n in range(num_episodes):
@@ -112,25 +113,25 @@ with drqn_sess.as_default():
                     break
             if visible:
                 successes += done
-            episode_reward += reward
 
             ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
 
             model.buffer.extend(ep_memory)
             ep_experience.clear()
 
-            if n % 2:
+            #   Optimizing
+            if n % 2 == 0:
                 print("optimizing")
                 mean_loss, drqn_summary = model.optimize(model=model,
                                                          batch_size=batch_size,
                                                          trace_length=trace_length,
                                                          target_model=target_model,
                                                          optimization_steps=optimistion_steps)
+                model.log(encoder_summary=ae_summary, drqn_summary=drqn_summary)
                 print("update Target network")
                 target_model.soft_update_from(model)
-                model.log(encoder_summary=ae_summary, drqn_summary=drqn_summary)
-
-            if n % 50:
+            #   Updating Main model
+            if n % 50 == 0:
                 print("Saving")
                 model.save(n)
 
@@ -139,8 +140,9 @@ with drqn_sess.as_default():
             #   epsilon decay
             losses.append(mean_loss)
             success_rate.append(successes / num_episodes)
+
             print("\repisode", n + 1, "success rate", success_rate[-1], 'loss %.2f:' % losses[-1],
-                  'exploration', epsilon, end=' ' * 10)
+                  'exploration', epsilon, "visible", visible, end=' ' * 10)
 
     # Plots
     plt.plot(losses)
