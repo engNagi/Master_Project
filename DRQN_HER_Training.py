@@ -41,6 +41,7 @@ mean_loss = 0
 loss_ = 0
 success_rate = []
 failure_rate = []
+success_failure_ratio = []
 episode_reward = 0
 
 #   environment initialization
@@ -143,11 +144,13 @@ with drqn_sess.as_default():
 
             #   epsilon decay
             losses.append(mean_loss)
-            failure_rate.append((failures / num_episodes))
+            failure_rate.append(1-(failures / num_episodes))
             success_rate.append((successes / num_episodes))
+            success_failure_ratio.append(successes/failures)
 
             print("\repisode:", n + 1, "success rate:", success_rate[-1],
-                  "failure rate:", failure_rate[-1],'loss: %.2f' % losses[-1])
+                  "failure rate:", failure_rate[-1], "ratio:", success_failure_ratio[-1],
+                  'loss: %.2f' % losses[-1])
 
     # Plots
     plt.plot(losses)
@@ -160,4 +163,16 @@ with drqn_sess.as_default():
     plt.xlabel('episodes')
     plt.ylabel('Success rate')
     plt.savefig("Success.png")
+    plt.show()
+
+    plt.plot(failure_rate)
+    plt.xlabel('episodes')
+    plt.ylabel('failure rate')
+    plt.savefig("failure.png")
+    plt.show()
+
+    plt.plot(success_failure_ratio)
+    plt.xlabel('episodes')
+    plt.ylabel('Success/failure ratio')
+    plt.savefig("Success/failure_ratio.png")
     plt.show()
