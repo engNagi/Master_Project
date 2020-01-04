@@ -100,48 +100,48 @@ class Environment(object):
         #   move right
         if action == 0:
             self.ctrl.step(dict(action="MoveRight"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   right rotate
         elif action == 1:
             self.ctrl.step(dict(action='RotateRight'))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   left rotate
         elif action == 2:
             self.ctrl.step(dict(action="RotateLeft"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   move left
         elif action == 3:
             self.ctrl.step(dict(action='MoveLeft'))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   move Ahead
         elif action == 4:
             self.ctrl.step(dict(action="MoveAhead"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   Move back
         elif action == 5:
             self.ctrl.step(dict(action="MoveBack"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   Crouch
         elif action == 6:
             self.ctrl.step(dict(action="Crouch"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   Stand
         elif action == 7:
             self.ctrl.step(dict(action="Stand"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   Look up
         elif action == 8:
             self.ctrl.step(dict(action="LookUp"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
         #   Look down
         elif action == 9:
             self.ctrl.step(dict(action="LookDown"))
-            reward, done, visible, obj_agent_dis_, first_person_obs, collide = self.post_action_state(obj_agent_dist)
+            reward, done, visible, obj_agent_dis_, first_person_obs, collision = self.post_action_state(obj_agent_dist)
 
         #   agent position
         agent_position, agent_rotation, agent_pose = self.agent_properties()
 
-        return first_person_obs, agent_position, done, reward, obj_agent_dis_, visible, agent_pose, collide
+        return first_person_obs, agent_position, done, reward, obj_agent_dis_, visible, agent_pose, collision
 
     def agent_properties(self):
         agent_position = np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values()))
@@ -161,11 +161,12 @@ class Environment(object):
         self.obj = self.ctrl.last_event.metadata["objects"]
         for obj in self.obj:
             if self.object_name in obj["name"]:
-                obj_ = obj
-        obj_position = obj["position"]
-        obj_visibility = obj["visible"]
-        obj_agent_distance = obj["distance"]
-
+                goal_object = obj
+                break
+        obj_position = goal_object["position"]
+        obj_visibility = goal_object["visible"]
+        obj_agent_distance = goal_object["distance"]
+        print("\n visible:", obj_visibility)
         return obj_position, obj_visibility, obj_agent_distance
 
     def agent_random_init(self):
@@ -192,9 +193,8 @@ class Environment(object):
         first_person_obs = self.ctrl.last_event.frame
         collide = not self.ctrl.last_event.metadata["lastActionSuccess"]
         if visible:
-            if not collide:
-                reward = 0
-                done = True
+            reward = 0
+            done = True
         elif collide:
             reward = -1
             done = True
