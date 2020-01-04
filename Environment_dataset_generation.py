@@ -191,9 +191,10 @@ class Environment(object):
         _, visible, obj_agent_dis_ = self.object_properties()
         first_person_obs = self.ctrl.last_event.frame
         collide = not self.ctrl.last_event.metadata["lastActionSuccess"]
-        if visible and not collide:
-            reward = 0
-            done = True
+        if visible:
+            if not collide:
+                reward = 0
+                done = True
         elif collide:
             reward = -1
             done = True
