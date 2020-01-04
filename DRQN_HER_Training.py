@@ -143,8 +143,8 @@ with drqn_sess.as_default():
 
             #   epsilon decay
             losses.append(mean_loss)
-            failure_rate.append(1 - (failures / num_episodes))
-            success_rate.append(successes / num_episodes)
+            failure_rate.append((failures / num_episodes))
+            success_rate.append((successes / num_episodes))
 
             print("\repisode:", n + 1, "success rate:", success_rate[-1],
                   "failure rate:", failure_rate[-1],'loss: %.2f' % losses[-1])
