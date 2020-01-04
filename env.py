@@ -4,18 +4,17 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 
-
-env = Environment(top_view_cam=False, scene="FloorPlan220")
-
-env.make()
-first_person_obs, agent_position, object_name, object_position, object_agent_dis = env.reset()
-
-done = False
-while not done:
-    action = np.random.randint(0, 5)
-    frame, agent_position, done, reward = env.take_action(action)
-    print("agent_pose:", agent_position, "\n done:", done, "goal:", object_name)
-    im = Image.fromarray(frame)
-    im.save("frame.jpeg")
-    plt.imshow(im)
-    plt.show()
+import ai2thor.controller
+controller = ai2thor.controller.Controller()
+controller.start()
+controller.reset(scene_name='FloorPlan220')
+reachable = controller.step(dict(action="GetReachablePositions"))
+controller.step(dict(action='TeleportFull', x=-0.9, y=0.900998235, z=3.50, rotation=180))
+#controller.step(dict(action='LookDown'))
+event = controller.step(dict(action='Rotate', rotation=180))
+# In FloorPlan28, the agent should now be looking at a mug
+for o in event.metadata['objects']:
+    if o['visible'] and o['pickupable'] and o['objectType'] == 'Mug':
+        event = controller.step(dict(action='PickupObject', objectId=o['objectId']), raise_for_failure=True)
+        mug_object_id = o['objectId']
+        break

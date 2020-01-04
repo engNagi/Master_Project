@@ -95,9 +95,9 @@ with drqn_sess.as_default():
                                                          rnn_state=rnn_state,
                                                          obs_pos_state=obs_pos_state)
 
-                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collide = env.step(action, obj_agent_dis)
-                if visible and collide:
-                    print(" \nstep:", i, "visibility:", visible, ", collide:", collide, end=' ' * 10)
+                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action, obj_agent_dis)
+                if visible and collided:
+                    print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
                 features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
                                                     feed_dict={ae.image: obs_state[None, :, :, :]})
                 features_ = np.squeeze(features_, axis=0)
