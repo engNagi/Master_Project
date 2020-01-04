@@ -166,7 +166,6 @@ class Environment(object):
         obj_position = goal_object["position"]
         obj_visibility = goal_object["visible"]
         obj_agent_distance = goal_object["distance"]
-        print("\n visible:", obj_visibility)
         return obj_position, obj_visibility, obj_agent_distance
 
     def agent_random_init(self):
