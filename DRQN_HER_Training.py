@@ -112,8 +112,10 @@ with drqn_sess.as_default():
 
                 if done:
                     break
+            if not visible:
+                successes -= 1
             if visible:
-                successes += done
+                successes += 1
 
             ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
 
