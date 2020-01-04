@@ -18,7 +18,7 @@ action_n = 6
 #########################   hyper-parameter
 num_epochs = 10
 num_episodes = 10000
-max_episode_length = 50
+max_episode_length = 150
 her_strategy = "future"
 her_samples = 4
 
@@ -40,6 +40,7 @@ losses = []
 mean_loss = 0
 loss_ = 0
 success_rate = []
+failure_rate = []
 episode_reward = 0
 
 #   environment initialization
@@ -75,6 +76,7 @@ with drqn_sess.as_default():
         model.load()
         # loop for #of_cycles
         successes = 0
+        failures = 0
         for n in range(num_episodes):
             # reset environment
             obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
@@ -112,8 +114,8 @@ with drqn_sess.as_default():
 
                 if done:
                     break
-            if not visible:
-                successes -= 1
+            if collided:
+                failures += 1
             if visible:
                 successes += 1
 
@@ -135,16 +137,17 @@ with drqn_sess.as_default():
             target_model.soft_update_from(model)
             #   Updating Main model
             if n % 50 == 0:
-                print("Saving")
                 model.save(n)
 
             epsilon = max(epsilon * epsilon_decay, epsilon_min)
 
             #   epsilon decay
             losses.append(mean_loss)
+            failure_rate.append(1 - (failures / num_episodes))
             success_rate.append(successes / num_episodes)
 
-            print("\repisode:", n + 1, "success rate:", success_rate[-1], 'loss %.2f:' % losses[-1], end=' ' * 10)
+            print("\repisode:", n + 1, "success rate:", success_rate[-1],
+                  "failure rate:", failure_rate[-1],'loss: %.2f' % losses[-1])
 
     # Plots
     plt.plot(losses)
