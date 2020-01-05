@@ -184,8 +184,19 @@ class DRQN(object):
             losses += loss
         return losses / optimization_steps, summary
 
-    def log(self, encoder_summary, drqn_summary):
+    def log(self, encoder_summary, drqn_summary, success_rate, failure_rate, success_failure_ratio):
+
         encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
         encoder_writer.add_summary(encoder_summary)
         writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train")
         writer.add_summary(drqn_summary)
+        aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
+
+        aux_summary = tf.Summary()
+        aux_summary.value.add(tag="success_rate", simple_value=success_rate[-1])
+        aux_summary.value.add(tag="failure_rate", simple_value=failure_rate[-1])
+        aux_summary.value.add(tag="ratio", simple_value=success_failure_ratio[-1])
+        aux_writer.add_summary(aux_summary, success_rate[-1])
+        aux_writer.add_summary(aux_summary, failure_rate[-1])
+        aux_writer.add_summary(aux_summary, success_failure_ratio[-1])
+
