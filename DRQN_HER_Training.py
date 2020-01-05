@@ -9,15 +9,14 @@ from DRQN_HER import DRQN
 from Her_episodes_experiences import Her_episodes_experiences
 from Environment_dataset_generation import Environment
 
-
 random.seed(123)
 np.random.seed(123)
 
 #########   bitfliping environment
 action_n = 6
 #########################   hyper-parameter
-num_epochs = 10
-num_episodes = 10000
+num_epochs = 1000
+num_episodes = 10
 max_episode_length = 150
 her_strategy = "future"
 her_samples = 4
@@ -76,81 +75,92 @@ with drqn_sess.as_default():
         tf.global_variables_initializer().run()
         model.load()
         # loop for #of_cycles
-        successes = 0
-        failures = 0
-        for n in range(num_episodes):
-            # reset environment
-            obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
 
-            features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
-            features = np.squeeze(features, axis=0)
-            obs_pos_state = np.concatenate((features, pos_state), axis=0)
+        for j in range(num_epochs):
+            successes = 0
+            failures = 0
+            for n in range(num_episodes):
+                # reset environment
+                obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
 
-            rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
-            done = False
-            i = 0
-            while i < max_episode_length:
-                i += 1
-                action, rnn_state_ = model.sample_action(goal=goal,
-                                                         batch_size=1,
-                                                         trace_length=1,
-                                                         epsilon=epsilon,
-                                                         rnn_state=rnn_state,
-                                                         obs_pos_state=obs_pos_state)
+                features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
+                features = np.squeeze(features, axis=0)
+                obs_pos_state = np.concatenate((features, pos_state), axis=0)
 
-                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action, obj_agent_dis)
-                if visible and collided:
-                    print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
-                features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
-                                                    feed_dict={ae.image: obs_state[None, :, :, :]})
-                features_ = np.squeeze(features_, axis=0)
-                obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
+                rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
+                done = False
 
-                # append to experience replay
-                ep_experience.add(obs_pos_state, action, reward, obs_pos_state_, done, goal)
+                for i in range(max_episode_length):
 
-                rnn_state = rnn_state_
-                obs_pos_state = obs_pos_state_
-                obj_agent_dis = object_agent_dis_
+                    action, rnn_state_ = model.sample_action(goal=goal,
+                                                             batch_size=1,
+                                                             trace_length=1,
+                                                             epsilon=epsilon,
+                                                             rnn_state=rnn_state,
+                                                             obs_pos_state=obs_pos_state)
 
-                if done:
-                    break
-            if collided:
-                failures += 1
-            if visible:
-                successes += 1
+                    obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action,
+                                                                                                             obj_agent_dis)
+                    # if visible and collided:
+                    #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
+                    features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
+                                                        feed_dict={ae.image: obs_state[None, :, :, :]})
+                    features_ = np.squeeze(features_, axis=0)
+                    obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
-            ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
+                    # append to experience replay
+                    ep_experience.add(obs_pos_state, action, reward, obs_pos_state_, done, goal)
 
-            model.buffer.extend(ep_memory)
-            ep_experience.clear()
+                    rnn_state = rnn_state_
+                    obs_pos_state = obs_pos_state_
+                    obj_agent_dis = object_agent_dis_
+                    i += 1
 
-            #   Optimizing
-            if n % 5 == 0 and n > 0:
-                #print("optimizing")
-                mean_loss, drqn_summary = model.optimize(model=model,
-                                                         batch_size=batch_size,
-                                                         trace_length=trace_length,
-                                                         target_model=target_model,
-                                                         optimization_steps=optimistion_steps)
-                model.log(encoder_summary=ae_summary, drqn_summary=drqn_summary)
-            #print("update Target network")
-            target_model.soft_update_from(model)
-            #   Updating Main model
-            if n % 50 == 0:
-                model.save(n)
+                    if done:
+                        break
+                if visible and not collided:
+                    successes += 1
+                elif collided:
+                    failures += 1
+                else:
+                    failures += 1
 
-            epsilon = max(epsilon * epsilon_decay, epsilon_min)
+                # print(" \nepisode_number:", n, "visibility:", visible, ", collide:", collided, end=' ' * 10)
+                ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
 
-            #   epsilon decay
+                model.buffer.extend(ep_memory)
+                ep_experience.clear()
+
+                #   Optimizing
+                if n > 3:
+                    #print("optimizing and updating")
+                    mean_loss, drqn_summary = model.optimize(model=model,
+                                                             batch_size=batch_size,
+                                                             trace_length=trace_length,
+                                                             target_model=target_model,
+                                                             optimization_steps=optimistion_steps)
+                #print("update Target network")
+                    target_model.soft_update_from(model)
+                #   saving
+                if n % 50 == 0:
+                    model.save(n)
+
+                epsilon = max(epsilon * epsilon_decay, epsilon_min)
+
+                #   epsilon decay
             losses.append(mean_loss)
-            failure_rate.append(1-(failures / num_episodes))
+            failure_rate.append((failures / num_episodes))
             success_rate.append((successes / num_episodes))
-            success_failure_ratio.append(successes/failures)
+            success_failure_ratio.append(successes / (failures+1e-6))
+            model.log(encoder_summary=ae_summary,
+                      drqn_summary=drqn_summary,
+                      success_rate=success_rate,
+                      failure_rate=failure_rate,
+                      success_failure_ratio=success_failure_ratio)
 
-            print("\repisode:", n + 1, "success rate:", success_rate[-1],
-                  "failure rate:", failure_rate[-1], "ratio:", success_failure_ratio[-1],
-                  'loss: %.2f' % losses[-1])
+            print("\repoch:", j + 1, "success rate:", success_rate[-1],
+                  "failure rate %.3f" % failure_rate[-1], "ratio %.3f" % success_failure_ratio[-1],
+                  'loss: %.2f' % losses[-1], 'exploration %.2f' % epsilon, end=' ' * 10)
 
     # Plots
     plt.plot(losses)
