@@ -198,4 +198,7 @@ class DRQN(object):
         aux_writer.add_summary(aux_summary, success_rate)
         aux_writer.add_summary(aux_summary, failure_rate)
         aux_writer.add_summary(aux_summary, success_failure_ratio)
+        writer.flush()
+        encoder_writer.flush()
+        aux_writer.flush()
 
