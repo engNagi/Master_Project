@@ -17,7 +17,7 @@ np.random.seed(123)
 action_n = 6
 #########################   hyper-parameter
 num_epochs = 10
-num_episodes = 10000
+num_episodes = 3000
 max_episode_length = 150
 her_strategy = "future"
 her_samples = 4
@@ -78,79 +78,80 @@ with drqn_sess.as_default():
         # loop for #of_cycles
         successes = 0
         failures = 0
-        for n in range(num_episodes):
-            # reset environment
-            obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
+        for i in range(num_epochs):
+            for n in range(num_episodes):
+                # reset environment
+                obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
 
-            features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
-            features = np.squeeze(features, axis=0)
-            obs_pos_state = np.concatenate((features, pos_state), axis=0)
+                features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
+                features = np.squeeze(features, axis=0)
+                obs_pos_state = np.concatenate((features, pos_state), axis=0)
 
-            rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
-            done = False
-            i = 0
-            while i < max_episode_length:
-                i += 1
-                action, rnn_state_ = model.sample_action(goal=goal,
-                                                         batch_size=1,
-                                                         trace_length=1,
-                                                         epsilon=epsilon,
-                                                         rnn_state=rnn_state,
-                                                         obs_pos_state=obs_pos_state)
+                rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
+                done = False
+                i = 0
+                while i < max_episode_length:
+                    i += 1
+                    action, rnn_state_ = model.sample_action(goal=goal,
+                                                             batch_size=1,
+                                                             trace_length=1,
+                                                             epsilon=epsilon,
+                                                             rnn_state=rnn_state,
+                                                             obs_pos_state=obs_pos_state)
 
-                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action, obj_agent_dis)
-                if visible and collided:
-                    print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
-                features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
-                                                    feed_dict={ae.image: obs_state[None, :, :, :]})
-                features_ = np.squeeze(features_, axis=0)
-                obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
+                    obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action, obj_agent_dis)
+                    if visible and collided:
+                        print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
+                    features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
+                                                        feed_dict={ae.image: obs_state[None, :, :, :]})
+                    features_ = np.squeeze(features_, axis=0)
+                    obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
-                # append to experience replay
-                ep_experience.add(obs_pos_state, action, reward, obs_pos_state_, done, goal)
+                    # append to experience replay
+                    ep_experience.add(obs_pos_state, action, reward, obs_pos_state_, done, goal)
 
-                rnn_state = rnn_state_
-                obs_pos_state = obs_pos_state_
-                obj_agent_dis = object_agent_dis_
+                    rnn_state = rnn_state_
+                    obs_pos_state = obs_pos_state_
+                    obj_agent_dis = object_agent_dis_
 
-                if done:
-                    break
-            if collided:
-                failures += 1
-            if visible:
-                successes += 1
+                    if done:
+                        break
+                if collided:
+                    failures += 1
+                if visible:
+                    successes += 1
 
-            ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
+                ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
 
-            model.buffer.extend(ep_memory)
-            ep_experience.clear()
+                model.buffer.extend(ep_memory)
+                ep_experience.clear()
 
-            #   Optimizing
-            if n % 5 == 0 and n > 0:
-                #print("optimizing")
-                mean_loss, drqn_summary = model.optimize(model=model,
-                                                         batch_size=batch_size,
-                                                         trace_length=trace_length,
-                                                         target_model=target_model,
-                                                         optimization_steps=optimistion_steps)
-                model.log(encoder_summary=ae_summary, drqn_summary=drqn_summary)
-            #print("update Target network")
-            target_model.soft_update_from(model)
-            #   Updating Main model
-            if n % 50 == 0:
-                model.save(n)
+                #   Optimizing
+                if n % 5 == 0 and n > 0:
+                    print("optimizing")
+                    mean_loss, drqn_summary = model.optimize(model=model,
+                                                             batch_size=batch_size,
+                                                             trace_length=trace_length,
+                                                             target_model=target_model,
+                                                             optimization_steps=optimistion_steps)
+                    model.log(encoder_summary=ae_summary, drqn_summary=drqn_summary)
+                print("update Target network")
+                target_model.soft_update_from(model)
+                #   Updating Main model
+                if n % 50 == 0:
+                    model.save(n+2000)
 
-            epsilon = max(epsilon * epsilon_decay, epsilon_min)
+                epsilon = max(epsilon * epsilon_decay, epsilon_min)
 
-            #   epsilon decay
-            losses.append(mean_loss)
-            failure_rate.append(1-(failures / num_episodes))
-            success_rate.append((successes / num_episodes))
-            success_failure_ratio.append(successes/failures)
+                #   epsilon decay
+                losses.append(mean_loss)
+                failure_rate.append(1-(failures / num_episodes))
+                success_rate.append((successes / num_episodes))
+                success_failure_ratio.append(successes/failures)
 
-            print("\repisode:", n + 1, "success rate:", success_rate[-1],
-                  "failure rate:", failure_rate[-1], "ratio:", success_failure_ratio[-1],
-                  'loss: %.2f' % losses[-1])
+                print("\repisode:", n + 1, "success rate:", success_rate[-1],
+                      "failure rate:", failure_rate[-1], "ratio:", success_failure_ratio[-1],
+                      'loss: %.2f' % losses[-1])
 
     # Plots
     plt.plot(losses)
