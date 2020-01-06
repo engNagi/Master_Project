@@ -16,13 +16,12 @@ np.random.seed(123)
 action_n = 6
 #########################   hyper-parameter
 num_epochs = 1000
-num_episodes = 10
+num_episodes = 10000
 max_episode_length = 150
 her_strategy = "future"
 her_samples = 4
 
 # experience replay parameters
-MAX_EXPERIENCES = 10000
 ep_experience = Her_episodes_experiences()
 
 # DQN Bathrooms parameters
@@ -31,17 +30,18 @@ trace_length = 8
 gamma = 0.99
 fcl_dims = 256
 nodes_num = 518
-optimistion_steps = 40
-TARGET_UPDATE_PERIOD = 10000
-
+optimistion_steps = 200
+update_period = 1000
+pretrain_steps = 1000
 #   tracking parameters
 losses = []
-mean_loss = 0
+loss = 0
 loss_ = 0
 success_rate = []
 failure_rate = []
 success_failure_ratio = []
 episode_reward = 0
+drqn_summary = tf.Summary()
 
 #   environment initialization
 env = Environment(random_goals=True, random_init=True)
@@ -55,10 +55,9 @@ ae_sess, ae = load_autoencoder()
 
 
 # epsilon for Epsilon Greedy Algorithm
-epsilon = 0.2
+epsilon = 1
 epsilon_min = 0.02
-epsilon_decay = 0.95
-epsilon_change = (epsilon - epsilon_min) / 500
+epsilon_decay = 0.999
 
 #   main loop
 print("DQN_HER_Model")
@@ -74,115 +73,108 @@ with drqn_sess.as_default():
     with drqn_graph.as_default():
         tf.global_variables_initializer().run()
         model.load()
-        # loop for #of_cycles
 
-        for j in range(num_epochs):
-            successes = 0
-            failures = 0
-            for n in range(num_episodes):
-                # reset environment
-                obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
+        # for j in range(num_epochs):
+        successes = 0
+        failures = 0
+        total_steps = 0
+        for n in range(num_episodes):
+            # reset environment
+            obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
 
-                features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
-                features = np.squeeze(features, axis=0)
-                obs_pos_state = np.concatenate((features, pos_state), axis=0)
+            features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
+            features = np.squeeze(features, axis=0)
+            obs_pos_state = np.concatenate((features, pos_state), axis=0)
 
-                rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
-                done = False
+            rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
+            done = False
+            while not done:
 
-                for i in range(max_episode_length):
+                action, rnn_state_ = model.sample_action(goal=goal,
+                                                         batch_size=1,
+                                                         trace_length=1,
+                                                         epsilon=epsilon,
+                                                         rnn_state=rnn_state,
+                                                         obs_pos_state=obs_pos_state)
 
-                    action, rnn_state_ = model.sample_action(goal=goal,
-                                                             batch_size=1,
-                                                             trace_length=1,
-                                                             epsilon=epsilon,
-                                                             rnn_state=rnn_state,
-                                                             obs_pos_state=obs_pos_state)
+                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action,
+                                                                                                         obj_agent_dis)
+                # if visible and collided:
+                #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
+                features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
+                                                    feed_dict={ae.image: obs_state[None, :, :, :]})
+                features_ = np.squeeze(features_, axis=0)
+                obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
-                    obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action,
-                                                                                                             obj_agent_dis)
-                    # if visible and collided:
-                    #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
-                    features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
-                                                        feed_dict={ae.image: obs_state[None, :, :, :]})
-                    features_ = np.squeeze(features_, axis=0)
-                    obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
-
-                    # append to experience replay
-                    ep_experience.add(obs_pos_state, action, reward, obs_pos_state_, done, goal)
-
-                    rnn_state = rnn_state_
-                    obs_pos_state = obs_pos_state_
-                    obj_agent_dis = object_agent_dis_
-                    i += 1
-
-                    if done:
-                        break
+                # append to experience replay
+                ep_experience.add(obs_pos_state, action, reward, obs_pos_state_, done, goal)
                 if visible and not collided:
-                    successes += 1
-                elif collided:
-                    failures += 1
+                    successes += done
                 else:
-                    failures += 1
+                    failures += done
 
-                # print(" \nepisode_number:", n, "visibility:", visible, ", collide:", collided, end=' ' * 10)
-                ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
+                total_steps += 1
+                if total_steps > pretrain_steps:
+                    # HER
+                    ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
+                    model.buffer.extend(ep_memory)
+                    if total_steps % update_period == 0:
+                        print("update Target network")
+                        target_model.soft_update_from(model)
 
-                model.buffer.extend(ep_memory)
-                ep_experience.clear()
+                    loss, drqn_summary = model.optimize(model=model,
+                                                        batch_size=batch_size,
+                                                        trace_length=trace_length,
+                                                        target_model=target_model)
 
-                #   Optimizing
-                if n > 3:
-                    #print("optimizing and updating")
-                    mean_loss, drqn_summary = model.optimize(model=model,
-                                                             batch_size=batch_size,
-                                                             trace_length=trace_length,
-                                                             target_model=target_model,
-                                                             optimization_steps=optimistion_steps)
-                #print("update Target network")
-                    target_model.soft_update_from(model)
-                #   saving
-                if n % 50 == 0:
-                    model.save(n)
+                rnn_state = rnn_state_
+                obs_pos_state = obs_pos_state_
+                obj_agent_dis = object_agent_dis_
+                model.log(encoder_summary=ae_summary,
+                          drqn_summary=drqn_summary,
+                          success_rate=successes,
+                          failure_rate=failures,
+                          success_failure_ratio=(successes / (failures+1e-6)))
+                if done:
+                    break
 
-                epsilon = max(epsilon * epsilon_decay, epsilon_min)
 
-                #   epsilon decay
-            losses.append(mean_loss)
-            failure_rate.append((failures / num_episodes))
-            success_rate.append((successes / num_episodes))
-            success_failure_ratio.append(successes / (failures+1e-6))
-            model.log(encoder_summary=ae_summary,
-                      drqn_summary=drqn_summary,
-                      success_rate=success_rate,
-                      failure_rate=failure_rate,
-                      success_failure_ratio=success_failure_ratio)
+            epsilon = max(epsilon * epsilon_decay, epsilon_min)
+            print("\repisode:", n + 1, "successes:", successes,
+                  "failures", failures, "ratio %.3f" % (successes / (failures + 1e-6)),
+                  'loss: %.2f' % loss, 'exploration %.2f' % epsilon)
 
-            print("\repoch:", j + 1, "success rate:", success_rate[-1],
-                  "failure rate %.3f" % failure_rate[-1], "ratio %.3f" % success_failure_ratio[-1],
-                  'loss: %.2f' % losses[-1], 'exploration %.2f' % epsilon, end=' ' * 10)
 
-    # Plots
-    plt.plot(losses)
-    plt.xlabel('episodes')
-    plt.ylabel('Losses')
-    plt.savefig("losses.png")
-    plt.show()
+            # losses.append(mean_loss)
+            # failure_rate.append(failures)
+            # success_rate.append(successes)
+            # success_failure_ratio.append(successes / failures)
 
-    plt.plot(success_rate)
-    plt.xlabel('episodes')
-    plt.ylabel('Success rate')
-    plt.savefig("Success.png")
-    plt.show()
+            #   saving
+            if n % 50 == 0 and n > 0:
+                model.save(n)
 
-    plt.plot(failure_rate)
-    plt.xlabel('episodes')
-    plt.ylabel('failure rate')
-    plt.savefig("failure.png")
-    plt.show()
+# Plots
+plt.plot(losses)
+plt.xlabel('episodes')
+plt.ylabel('Losses')
+plt.savefig("losses.png")
+plt.show()
 
-    plt.plot(success_failure_ratio)
-    plt.xlabel('episodes')
-    plt.ylabel('Success/failure ratio')
-    plt.savefig("Success/failure_ratio.png")
-    plt.show()
+plt.plot(success_rate)
+plt.xlabel('episodes')
+plt.ylabel('Success rate')
+plt.savefig("Success.png")
+plt.show()
+
+plt.plot(failure_rate)
+plt.xlabel('episodes')
+plt.ylabel('failure rate')
+plt.savefig("failure.png")
+plt.show()
+
+plt.plot(success_failure_ratio)
+plt.xlabel('episodes')
+plt.ylabel('Success/failure ratio')
+plt.savefig("Success_failure_ratio.png")
+plt.show()
