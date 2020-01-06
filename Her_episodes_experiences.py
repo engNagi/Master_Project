@@ -4,10 +4,13 @@ import numpy as np
 
 
 class Her_episodes_experiences():
-    def __init__(self):
+    def __init__(self, buffer_size=1000):
         self.memory = []
+        self.buffer_size = buffer_size
 
     def add(self, state, action, reward, next_state, done, goal):
+        if len(self.memory) + 1 >= self.buffer_size:
+            self.memory[0:(1+len(self.memory))-self.buffer_size] = []
         self.memory += [(state, action, reward, next_state, done, goal)]
 
     def clear(self):

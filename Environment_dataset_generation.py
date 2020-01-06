@@ -24,8 +24,8 @@ class Environment(object):
                  fov=60.0,
                  action_n=6,
                  camera_Y=0.675,
-                 grid_size=0.25,
-                 visibility_distance=1.0,
+                 grid_size=0.20,
+                 visibility_distance=1.5,
                  player_screen_width=300,
                  player_screen_height=300,
                  full_scrn=False,
@@ -191,7 +191,7 @@ class Environment(object):
         _, visible, obj_agent_dis_ = self.object_properties()
         first_person_obs = self.ctrl.last_event.frame
         collide = not self.ctrl.last_event.metadata["lastActionSuccess"]
-        if visible:
+        if visible and not collide:
             reward = 0
             done = True
         elif collide:
