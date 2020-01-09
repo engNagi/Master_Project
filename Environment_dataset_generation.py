@@ -66,6 +66,7 @@ class Environment(object):
         self.ctrl.reset(self.scene)
 
     def reset(self):
+        random_goal_position = 0
         self.ctrl.reset(self.scene)
 
         if self.top_view_cam:
@@ -81,7 +82,7 @@ class Environment(object):
                             fieldOfView=self.fov))
 
         if self.random_init:
-            agent_random_pose = self.agent_random_init()
+            agent_random_spwan = self.agent_random_init()
 
         if self.random_goal:
             random_goal_position = self.random_goal_position()
@@ -90,11 +91,14 @@ class Environment(object):
 
         #   object position, visibility nad distance from agent to specified object
         obj_position, obj_visibility, obj_agent_distance = self.object_properties()
-        goal = list(obj_position.values())
-
+        #goal = list(obj_position.values())
+        try:
+            np.array_equal(np.array(list(self.ctrl.last_event.metadata["agent"]["position"].values())), agent_position)
+        except:
+            print("agent init position does not equal to agent position attribute")
         first_person_obs = self.ctrl.last_event.frame
 
-        return first_person_obs, agent_position, goal, obj_agent_distance, agent_pose, self.object_name
+        return first_person_obs, agent_position, random_goal_position, obj_agent_distance, agent_pose, self.object_name
 
     def step(self, action, obj_agent_dist):
         #   move right
