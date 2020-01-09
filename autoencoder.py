@@ -21,7 +21,7 @@ validation_period = 5000
 class Network(object):
     # Create model
     def __init__(self):
-        self.save_path = '/media/nagi/Volume/Autoencoder_2_add/CNN_AE.ckpt'
+        self.save_path = '/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/Autoencoder_2_add/CNN_AE.ckpt'
         self.image = tf.placeholder(tf.float32, [None, 300, 300, 3], name='image')
         self.resized_image = tf.image.resize_images(self.image, [256, 256])
         self.normalized_image = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), self.resized_image)

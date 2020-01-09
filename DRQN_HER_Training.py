@@ -25,11 +25,11 @@ her_samples = 4
 ep_experience = Her_episodes_experiences()
 
 # DQN Bathrooms parameters
-batch_size = 4
+batch_size = 32
 trace_length = 8
 gamma = 0.99
-fcl_dims = 256
-nodes_num = 518
+fcl_dims = 512
+nodes_num = 512
 optimistion_steps = 200
 update_period = 1000
 pretrain_steps = 1000
@@ -63,8 +63,8 @@ epsilon_decay = 0.999
 print("DQN_HER_Model")
 drqn_graph = tf.Graph()
 with drqn_graph.as_default():
-    model = DRQN(action_n=action_n, nodes_num=518, fcl_dims=nodes_num, scope="model")
-    target_model = DRQN(action_n=action_n, nodes_num=518, fcl_dims=nodes_num, scope="target_model")
+    model = DRQN(action_n=action_n, nodes_num=nodes_num, fcl_dims=fcl_dims, scope="model")
+    target_model = DRQN(action_n=action_n, nodes_num=nodes_num, fcl_dims=fcl_dims, scope="target_model")
 
 drqn_sess = tf.Session(graph=drqn_graph)
 model.set_session(drqn_sess)
@@ -112,16 +112,15 @@ with drqn_sess.as_default():
                     successes += done
                 else:
                     failures += done
-
+                #success_failure_ratio.append((successes/(failure_rate+1e-6)))
                 total_steps += 1
                 if total_steps > pretrain_steps:
                     # HER
                     ep_memory = ep_experience.her(strategy="future", her_samples=her_samples)
                     model.buffer.extend(ep_memory)
                     if total_steps % update_period == 0:
-                        print("update Target network")
+                        print("update_main_network")
                         target_model.soft_update_from(model)
-
                     loss, drqn_summary = model.optimize(model=model,
                                                         batch_size=batch_size,
                                                         trace_length=trace_length,
@@ -130,32 +129,29 @@ with drqn_sess.as_default():
                 rnn_state = rnn_state_
                 obs_pos_state = obs_pos_state_
                 obj_agent_dis = object_agent_dis_
-                model.log(encoder_summary=ae_summary,
-                          drqn_summary=drqn_summary,
-                          success_rate=successes,
-                          failure_rate=failures,
-                          success_failure_ratio=(successes / (failures+1e-6)))
+                # model.log(encoder_summary=ae_summary,
+                #           drqn_summary=drqn_summary,
+                #           success_rate=successes,
+                #           failure_rate=failures,
+                #           success_failure_ratio=(successes / (failures+1e-6)))
                 if done:
                     break
 
 
             epsilon = max(epsilon * epsilon_decay, epsilon_min)
+            losses.append(loss)
+            success_rate.append(successes/(failures+1e-6))
             print("\repisode:", n + 1, "successes:", successes,
                   "failures", failures, "ratio %.3f" % (successes / (failures + 1e-6)),
                   'loss: %.2f' % loss, 'exploration %.2f' % epsilon)
 
 
-            # losses.append(mean_loss)
-            # failure_rate.append(failures)
-            # success_rate.append(successes)
-            # success_failure_ratio.append(successes / failures)
-
-            #   saving
             if n % 50 == 0 and n > 0:
+                print("saving")
                 model.save(n)
 
 # Plots
-plt.plot(losses)
+plt.plot(loss)
 plt.xlabel('episodes')
 plt.ylabel('Losses')
 plt.savefig("losses.png")

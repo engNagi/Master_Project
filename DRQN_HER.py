@@ -8,14 +8,15 @@ np.random.seed(123)
 
 
 class DRQN(object):
-    def __init__(self, action_n, scope,
+    def __init__(self, action_n,
+                 scope,
+                 fcl_dims,
+                 nodes_num,
                  im_height=180,
                  im_width=160,
-                 fcl_dims=256,
                  buffer_size=50000,
                  gamma=0.98,
-                 nodes_num=518,
-                 save_path='/home/nagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
+                 save_path='/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -44,7 +45,7 @@ class DRQN(object):
                 self.train_length = tf.placeholder(tf.int32)
                 self.batch_size = tf.placeholder(tf.int32, shape=[])
                 self.input_flat = tf.reshape(tf.layers.flatten(state_goals),
-                                             [self.batch_size, self.train_length, self.nodes_num])
+                                             [self.batch_size, self.train_length, 518])
                 # number_of_units may need to be changed
                 self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=self.nodes_num, state_is_tuple=True)
                 self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
@@ -185,11 +186,11 @@ class DRQN(object):
 
     def log(self, encoder_summary, drqn_summary, success_rate, failure_rate, success_failure_ratio):
 
-        encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
-        encoder_writer.add_summary(encoder_summary)
-        writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train")
+        # encoder_writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/encoder")
+        # encoder_writer.add_summary(encoder_summary)
+        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/Train")
         writer.add_summary(drqn_summary)
-        aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
+        aux_writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/aux")
 
         aux_summary = tf.Summary()
         aux_summary.value.add(tag="success_rate", simple_value=success_rate)
@@ -198,7 +199,7 @@ class DRQN(object):
         aux_writer.add_summary(aux_summary, success_rate)
         aux_writer.add_summary(aux_summary, failure_rate)
         aux_writer.add_summary(aux_summary, success_failure_ratio)
-        writer.flush()
-        encoder_writer.flush()
-        aux_writer.flush()
+        # writer.flush()
+        # #encoder_writer.flush()
+        # aux_writer.flush()
 
