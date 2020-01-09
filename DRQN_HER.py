@@ -49,7 +49,7 @@ class DRQN(object):
                 # number_of_units may need to be changed
                 self.cell = tf.contrib.rnn.LSTMCell(num_units=self.nodes_num,
                                                     state_is_tuple=True,
-                                                    activation=tf.nn.leaky_relu,
+                                                    activation=tf.nn.tanh,
                                                     initializer=tf.initializers.he_normal())
 
                 self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
@@ -61,9 +61,7 @@ class DRQN(object):
 
                 self.rnn_flat = tf.reshape(self.rnn, shape=[-1, self.nodes_num])
 
-            dense1 = tf.layers.dense(self.rnn_flat, self.fc1_dims, activation=tf.nn.relu,
-                                     kernel_initializer=tf.variance_scaling_initializer(scale=2),
-                                     trainable=True)
+            dense1 = tf.layers.dense(self.rnn_flat, self.fc1_dims, activation=tf.nn.relu, trainable=True)
 
             # final output layer
             self.predict_op = tf.layers.dense(dense1, action_n, trainable=True)
