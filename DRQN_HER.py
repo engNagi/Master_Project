@@ -8,15 +8,14 @@ np.random.seed(123)
 
 
 class DRQN(object):
-    def __init__(self, action_n,
-                 scope,
-                 fcl_dims,
-                 nodes_num,
+    def __init__(self, action_n, scope,
                  im_height=180,
                  im_width=160,
+                 fcl_dims=256,
                  buffer_size=50000,
                  gamma=0.98,
-                 save_path='/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/DRQN.ckpt'):
+                 nodes_num=518,
+                 save_path='/home/nagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -46,14 +45,20 @@ class DRQN(object):
                 self.batch_size = tf.placeholder(tf.int32, shape=[])
                 self.input_flat = tf.reshape(tf.layers.flatten(state_goals),
                                              [self.batch_size, self.train_length, 518])
+
                 # number_of_units may need to be changed
-                self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=self.nodes_num, state_is_tuple=True)
+                self.cell = tf.contrib.rnn.LSTMCell(num_units=self.nodes_num,
+                                                    state_is_tuple=True,
+                                                    activation=tf.nn.tanh,
+                                                    initializer=tf.initializers.he_normal())
+
                 self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
                 self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.input_flat,
                                                              cell=self.cell,
                                                              dtype=tf.float32,
                                                              initial_state=self.state_in,
                                                              scope=scope + '_rnn')
+
                 self.rnn_flat = tf.reshape(self.rnn, shape=[-1, self.nodes_num])
 
             dense1 = tf.layers.dense(self.rnn_flat, self.fc1_dims, activation=tf.nn.relu, trainable=True)
@@ -70,11 +75,12 @@ class DRQN(object):
 
             self.train_op = tf.train.AdamOptimizer(1e-3).minimize(self.cost)
 
-            with tf.variable_scope("Summary"):
-                tf.summary.scalar("Cost", self.cost)
-                tf.summary.histogram("Goals", self.goals)
-                tf.summary.histogram("Action_Q_values", self.Q_values)
-                self.summary = tf.summary.merge_all()
+            tf.summary.scalar("Cost", self.cost)
+            tf.summary.histogram("Goals", self.goals)
+            tf.summary.histogram("Action_Q_values", self.Q_values)
+            tf.summary.histogram("LSTM", self.rnn)
+            tf.summary.histogram("LSTM_State", self.rnn_state)
+            self.merged = tf.summary.merge_all()
 
     def hard_update_from(self, other):
         mine = [t for t in tf.trainable_variables() if t.name.startswith(self.scope)]
@@ -105,7 +111,7 @@ class DRQN(object):
         return actions_q_values, rnn, rnn_state_
 
     def update(self, goals, states, actions, batch_size, q_values, trace_length, rnn_state):
-        self.c, _, summary = self.session.run([self.cost, self.train_op, self.summary],
+        self.c, _, self.summary = self.session.run([self.cost, self.train_op, self.merged],
                                               feed_dict={self.goals: goals,
                                                          self.inputs: states,
                                                          self.actions: actions,
@@ -113,12 +119,12 @@ class DRQN(object):
                                                          self.state_in: rnn_state,
                                                          self.batch_size: batch_size,
                                                          self.train_length: trace_length})
-        return self.c, summary
+        return self.c, self.summary
 
     def sample_action(self, goal, batch_size, trace_length, epsilon, rnn_state, obs_pos_state):
         """Implements epsilon greedy algorithm"""
         if np.random.random() < epsilon:
-            _, _, rnn_state_ = self.predict([obs_pos_state], [goal], batch_size, trace_length, rnn_state)
+            q_values, rnn, rnn_state_ = self.predict([obs_pos_state], [goal], batch_size, trace_length, rnn_state)
             action = np.random.choice(self.action_n)
         else:
             action_q_values, _, rnn_state_ = self.predict([obs_pos_state], [goal], batch_size, trace_length, rnn_state)
@@ -156,16 +162,16 @@ class DRQN(object):
         sampled_traces = np.reshape(sampled_traces, [batch_size * trace_length, 6])
         return sampled_traces
 
-    def optimize(self, model, target_model, batch_size, trace_length):
+    def optimize(self, model, target_model, batch_size, train_batch, trace_length):
         losses = 0
         rnn_stat_train = (np.zeros([batch_size, self.nodes_num]), np.zeros([batch_size, self.nodes_num]))
         #for _ in range(optimization_steps):
-        if len(self.buffer) < batch_size:  # if there's no enough transitions, do nothing
-            return 0
-        # sample batches from experiences
-        else:
-            samples = self.rnn_sample(batch_size, trace_length)
-            states, actions, rewards, next_states, dones, goals = map(np.array, zip(*samples))
+        # if len(self.buffer) < batch_size:  # if there's no enough transitions, do nothing
+        #     return 0
+        # # sample batches from experiences
+        # else:
+            # samples = self.rnn_sample(batch_size, trace_length)
+        states, actions, rewards, next_states, dones, goals = map(np.array, zip(*train_batch))
         # Calculate targets
         next_Qs, _, _ = target_model.predict(goals=goals,
                                              batch_size=batch_size,
@@ -175,31 +181,34 @@ class DRQN(object):
         next_Q = np.amax(next_Qs, axis=1)
         target_q_values = rewards + np.invert(dones).astype(np.float32) * self.gamma * next_Q
         #   Calculate network loss
-        loss, summary = model.update(goals=goals,
+        loss = model.update(goals=goals,
                                      states=states,
                                      actions=actions,
                                      batch_size=batch_size,
                                      q_values=target_q_values,
                                      trace_length=trace_length,
                                      rnn_state=rnn_stat_train)
-        return loss, summary
+        return loss
 
-    def log(self, encoder_summary, drqn_summary, success_rate, failure_rate, success_failure_ratio):
+    # def log(self, encoder_summary, drqn_summary, success_rate, failure_rate, success_failure_ratio):
+    #
+    #     # encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
+    #     # encoder_writer.add_summary(encoder_summary)
+    #     # writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train", self.session.graph)
+    #     # writer.add_summary(drqn_summary)
+    #     # aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
+    #
+    #     # aux_summary = tf.Summary()
+    #     # aux_summary.value.add(tag="success_rate", simple_value=success_rate)
+    #     # aux_summary.value.add(tag="failure_rate", simple_value=failure_rate)
+    #     # aux_summary.value.add(tag="ratio", simple_value=success_failure_ratio)
+    #     # aux_writer.add_summary(aux_summary, success_rate)
+    #     # aux_writer.add_summary(aux_summary, failure_rate)
+    #     # aux_writer.add_summary(aux_summary, success_failure_ratio)
+    #     # writer.flush()
+    #     # encoder_writer.flush()
+    #     # aux_writer.flush()
 
-        # encoder_writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/encoder")
-        # encoder_writer.add_summary(encoder_summary)
-        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/Train")
-        writer.add_summary(drqn_summary)
-        aux_writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2/aux")
-
-        aux_summary = tf.Summary()
-        aux_summary.value.add(tag="success_rate", simple_value=success_rate)
-        aux_summary.value.add(tag="failure_rate", simple_value=failure_rate)
-        aux_summary.value.add(tag="ratio", simple_value=success_failure_ratio)
-        aux_writer.add_summary(aux_summary, success_rate)
-        aux_writer.add_summary(aux_summary, failure_rate)
-        aux_writer.add_summary(aux_summary, success_failure_ratio)
-        # writer.flush()
-        # #encoder_writer.flush()
-        # aux_writer.flush()
-
+    def log_rnn(self):
+        writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train")
+        writer.add_summary(self.summary)
