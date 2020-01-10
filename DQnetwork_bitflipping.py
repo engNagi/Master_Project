@@ -11,8 +11,7 @@ class DQN(object):
                  fcl_dims=256,
                  buffer_size=50000,
                  gamma=0.98,
-                 save_path='/Volumes/Win/thesis/bitflipping_model_trained/DQN_model'
-                           '/atarix.ckpt'):
+                 save_path='/Users/mohamednagi/Desktop/Master_Project/dqn_her/dqn.ckpt'):
 
         self.action_n = action_n
         self.scope = scope

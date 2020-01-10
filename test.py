@@ -1,6 +1,6 @@
 import numpy as np
 from Experience_Memory import Episode_experience
-from Environment import Environment
+from Environment_dataset_generation import Environment
 from DQnetwork import DQN
 import tensorflow as tf
 import matplotlib.pyplot as plt

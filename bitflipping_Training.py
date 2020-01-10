@@ -116,7 +116,7 @@ with tf.Session() as sess:
             print("Saving the model")
             model.save(i)
         sys.stdout.flush()
-
+        tf.contrib.cudnn_rnn.CudnnLSTM
     # Plots
 plt.plot(losses)
 plt.xlabel('episodes')
