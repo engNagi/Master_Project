@@ -15,7 +15,7 @@ class DRQN(object):
                  buffer_size=50000,
                  gamma=0.98,
                  nodes_num=518,
-                 save_path='/home/nagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
+                 save_path='//home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2_32_10/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -47,10 +47,8 @@ class DRQN(object):
                                              [self.batch_size, self.train_length, 518])
 
                 # number_of_units may need to be changed
-                self.cell = tf.contrib.rnn.LSTMCell(num_units=self.nodes_num,
-                                                    state_is_tuple=True,
-                                                    activation=tf.nn.tanh,
-                                                    initializer=tf.initializers.he_normal())
+                self.cell = tf.contrib.rnn.BasicLSTMCell(num_units=self.nodes_num,
+                                                         state_is_tuple=True)
 
                 self.state_in = self.cell.zero_state(self.batch_size, tf.float32)
                 self.rnn, self.rnn_state = tf.nn.dynamic_rnn(inputs=self.input_flat,
@@ -112,13 +110,13 @@ class DRQN(object):
 
     def update(self, goals, states, actions, batch_size, q_values, trace_length, rnn_state):
         self.c, _, self.summary = self.session.run([self.cost, self.train_op, self.merged],
-                                              feed_dict={self.goals: goals,
-                                                         self.inputs: states,
-                                                         self.actions: actions,
-                                                         self.Q_values: q_values,
-                                                         self.state_in: rnn_state,
-                                                         self.batch_size: batch_size,
-                                                         self.train_length: trace_length})
+                                                   feed_dict={self.goals: goals,
+                                                              self.inputs: states,
+                                                              self.actions: actions,
+                                                              self.Q_values: q_values,
+                                                              self.state_in: rnn_state,
+                                                              self.batch_size: batch_size,
+                                                              self.train_length: trace_length})
         return self.c, self.summary
 
     def sample_action(self, goal, batch_size, trace_length, epsilon, rnn_state, obs_pos_state):
@@ -165,12 +163,12 @@ class DRQN(object):
     def optimize(self, model, target_model, batch_size, train_batch, trace_length):
         losses = 0
         rnn_stat_train = (np.zeros([batch_size, self.nodes_num]), np.zeros([batch_size, self.nodes_num]))
-        #for _ in range(optimization_steps):
+        # for _ in range(optimization_steps):
         # if len(self.buffer) < batch_size:  # if there's no enough transitions, do nothing
         #     return 0
         # # sample batches from experiences
         # else:
-            # samples = self.rnn_sample(batch_size, trace_length)
+        # samples = self.rnn_sample(batch_size, trace_length)
         states, actions, rewards, next_states, dones, goals = map(np.array, zip(*train_batch))
         # Calculate targets
         next_Qs, _, _ = target_model.predict(goals=goals,
@@ -182,12 +180,12 @@ class DRQN(object):
         target_q_values = rewards + np.invert(dones).astype(np.float32) * self.gamma * next_Q
         #   Calculate network loss
         loss = model.update(goals=goals,
-                                     states=states,
-                                     actions=actions,
-                                     batch_size=batch_size,
-                                     q_values=target_q_values,
-                                     trace_length=trace_length,
-                                     rnn_state=rnn_stat_train)
+                            states=states,
+                            actions=actions,
+                            batch_size=batch_size,
+                            q_values=target_q_values,
+                            trace_length=trace_length,
+                            rnn_state=rnn_stat_train)
         return loss
 
     # def log(self, encoder_summary, drqn_summary, success_rate, failure_rate, success_failure_ratio):
@@ -210,5 +208,5 @@ class DRQN(object):
     #     # aux_writer.flush()
 
     def log_rnn(self):
-        writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train")
+        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2_32_10/Train")
         writer.add_summary(self.summary)

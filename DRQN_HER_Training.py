@@ -17,7 +17,7 @@ np.random.seed(123)
 action_n = 6
 #########################   hyper-parameter
 num_epochs = 1000
-num_episodes = 10000
+num_episodes = 50000
 max_episode_length = 150
 her_strategy = "future"
 her_samples = 4
@@ -26,14 +26,14 @@ her_samples = 4
 her_rec_buffer = Her_rec_experiences()
 
 # DQN Bathrooms parameters
-batch_size = 4
-trace_length = 8
+batch_size = 32
+trace_length = 10
 gamma = 0.99
 fcl_dims = 512
 nodes_num = 256
 optimistion_steps = 200
 update_period = 5
-pretrain_steps = 1000
+pretrain_steps = 2000
 #   tracking parameters
 losses = []
 loss = 0
@@ -105,8 +105,8 @@ with drqn_sess.as_default():
                                                                                                          obj_agent_dis)
                 # if visible and collided:
                 #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
-                features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
-                                                    feed_dict={ae.image: obs_state[None, :, :, :]})
+                features_ = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state_[None, :, :, :]})
+
                 features_ = np.squeeze(features_, axis=0)
                 obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
@@ -120,17 +120,17 @@ with drqn_sess.as_default():
                         print("update Target network")
                         target_model.soft_update_from(model)
 
-                    if total_steps % update_period == 0:
+                    if total_steps % (update_period) == 0:
                         her_rec_buffer.her(strategy=her_strategy, her_samples=her_samples)
 
                         train_batch = her_rec_buffer.sample(batch_size=batch_size, trace_length=trace_length)
 
                         loss, _ = model.optimize(model=model,
-                                                            batch_size=batch_size,
-                                                            train_batch=train_batch,
-                                                            trace_length=trace_length,
-                                                            target_model=target_model)
-                        model.log_rnn()
+                                                 batch_size=batch_size,
+                                                 train_batch=train_batch,
+                                                 trace_length=trace_length,
+                                                 target_model=target_model)
+                        #model.log_rnn()
                 # model.log(encoder_summary=ae_summary,
                 #           drqn_summary=drqn_summary,
                 #           success_rate=successes,
@@ -183,6 +183,14 @@ with drqn_sess.as_default():
                 plt.ylabel('Success/failure ratio')
                 plt.savefig("Success_failure_ratio.png")
                 plt.show()
+
+                plt.plot(num_episodes, success_rate, 'b-', label='success rate')
+                plt.plot(num_episodes, failure_rate, 'r-', label='failure rate')
+                plt.plot(num_episodes, success_failure_ratio, 'o-', label='ratio')
+                plt.ylabel('score')
+                plt.xlabel('episode')
+                plt.legend()
+                plt.show()
             #   saving
             if n % 50 == 0 and n > 0:
                 model.save(n)
@@ -210,4 +218,12 @@ plt.plot(success_failure_ratio)
 plt.xlabel('episodes')
 plt.ylabel('Success/failure ratio')
 plt.savefig("Success_failure_ratio.png")
+plt.show()
+
+plt.plot(num_episodes, success_rate, 'b-', label='success rate')
+plt.plot(num_episodes, failure_rate, 'r-', label='failure rate')
+plt.plot(num_episodes, success_failure_ratio, 'o-', label='ratio')
+plt.ylabel('score')
+plt.xlabel('episode')
+plt.legend()
 plt.show()

@@ -6,7 +6,7 @@ import random
 
 class Her_rec_experiences(object):
 
-    def __init__(self, buffer_size=1000):
+    def __init__(self, buffer_size=500):
         self.memory = []
         self.mem_size = buffer_size
 
