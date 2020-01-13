@@ -1,10 +1,8 @@
 import gym
-import sys
-import random
 import numpy as np
 import tensorflow as tf
 from scipy.misc import imresize
-from DQnetwork import DQN
+from aux_code.DQnetwork import DQN
 
 MAX_EXPERIENCES = 50000
 MIN_EXPERIENCES = 5000

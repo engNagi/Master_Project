@@ -37,16 +37,16 @@ class Her_rec_experiences(object):
                     for k in range(her_samples):
                         future_samples = np.random.randint(trans_idx, len(episode))
                         goal = episode[future_samples][3]
-                        goal_pos = goal[-3:]
+                        #goal_pos = goal[-3:]
                         state = episode[trans_idx][0]
                         action = episode[trans_idx][1]
                         next_state = episode[trans_idx][3]
-                        next_state_pos = next_state[-3:]
-                        done = np.array_equal(goal_pos, next_state_pos)
+                        #next_state_pos = next_state[-3:]
+                        done = np.array_equal(goal, next_state)
                         reward = 0 if done else -1
                         episode[trans_idx][0] = state
                         episode[trans_idx][1] = action
                         episode[trans_idx][2] = reward
                         episode[trans_idx][3] = next_state
                         episode[trans_idx][4] = done
-                        episode[trans_idx][5] = goal_pos
+                        episode[trans_idx][5] = goal

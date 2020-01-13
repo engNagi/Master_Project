@@ -9,7 +9,7 @@ class experience_buffer(object):
 
     def add(self, experience):
         if len(self.memory) + len(experience) >= self.mem_size:
-            self.memory[0:(len(experience)+len(self.memory))-len(self.mem_size)] = []
+            self.memory[0:(len(experience)+len(self.memory)) - self.mem_size] = []
         self.memory.extend(experience)
 
     def sample(self, batch_size):

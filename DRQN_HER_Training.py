@@ -42,7 +42,7 @@ success_rate = []
 failure_rate = []
 success_failure_ratio = []
 episode_reward = 0
-drqn_summary = tf.Summary()
+
 
 #   environment initialization
 env = Environment(random_goals=True, random_init=True)
@@ -85,12 +85,12 @@ with drqn_sess.as_default():
             #   rnn_init_state
             rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
             # reset environment
-            obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
+            obs_state, _, _, obj_agent_dis, _, _ = env.reset()
 
             features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
             features = np.squeeze(features, axis=0)
-            obs_pos_state = np.concatenate((features, pos_state), axis=0)
-
+            # obs_pos_state = np.concatenate((features, pos_state), axis=0)
+            goal = features
             done = False
             while not done:
 
@@ -99,20 +99,23 @@ with drqn_sess.as_default():
                                                          trace_length=1,
                                                          epsilon=epsilon,
                                                          rnn_state=rnn_state,
-                                                         obs_pos_state=obs_pos_state)
+                                                         features=features)
 
                 obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action,
                                                                                                          obj_agent_dis)
+                if object_agent_dis_ < 2.0:
+                    print(object_agent_dis_)
+                # print(object_agent_dis_)
                 # if visible and collided:
                 #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
                 features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
-                                                    feed_dict={ae.image: obs_state[None, :, :, :]})
+                                                    feed_dict={ae.image: obs_state_[None, :, :, :]})
                 features_ = np.squeeze(features_, axis=0)
-                obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
+                # obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
                 # append to episode buffer
                 episode_buffer.add(
-                    np.reshape(np.array([obs_pos_state, action, reward, obs_pos_state_, done, goal]), [1, 6]))
+                    np.reshape(np.array([features, action, reward, features_, done, goal]), [1, 6]))
 
                 if total_steps > pretrain_steps:
 
@@ -125,27 +128,24 @@ with drqn_sess.as_default():
 
                         train_batch = her_rec_buffer.sample(batch_size=batch_size, trace_length=trace_length)
 
-                        loss, _ = model.optimize(model=model,
+                        loss, drqn_summary = model.optimize(model=model,
                                                             batch_size=batch_size,
                                                             train_batch=train_batch,
                                                             trace_length=trace_length,
                                                             target_model=target_model)
-                        model.log_rnn()
-                # model.log(encoder_summary=ae_summary,
-                #           drqn_summary=drqn_summary,
-                #           success_rate=successes,
-                #           failure_rate=failures,
-                #           success_failure_ratio=(successes / (failures+1e-6)))
+                        # model.log_rnn()
+                        #model.log(drqn_summary=drqn_summary, total_steps=total_steps)
                 total_steps += 1
                 rnn_state = rnn_state_
-                obs_pos_state = obs_pos_state_
+                features = features_
                 obj_agent_dis = object_agent_dis_
 
                 if done:
-                    if visible and not collided:
-                        successes += done
-                    else:
-                        failures += done
+                    if total_steps > pretrain_steps:
+                        if obj_agent_dis < 2.0:
+                            successes += done
+                        else:
+                            failures += done
                     break
             her_rec_buffer.add(episode_buffer.memory)
             epsilon = max(epsilon * epsilon_decay, epsilon_min)
@@ -181,7 +181,7 @@ with drqn_sess.as_default():
                 plt.plot(success_failure_ratio)
                 plt.xlabel('episodes')
                 plt.ylabel('Success/failure ratio')
-                plt.savefig("Success_failure_ratio.png")
+                plt.savefig("Success_failure_ratio_2.png")
                 plt.show()
             #   saving
             if n % 50 == 0 and n > 0:
@@ -209,5 +209,5 @@ plt.show()
 plt.plot(success_failure_ratio)
 plt.xlabel('episodes')
 plt.ylabel('Success/failure ratio')
-plt.savefig("Success_failure_ratio.png")
+plt.savefig("Success_failure_ratio_2.png")
 plt.show()

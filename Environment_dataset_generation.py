@@ -195,17 +195,20 @@ class Environment(object):
         _, visible, obj_agent_dis_ = self.object_properties()
         first_person_obs = self.ctrl.last_event.frame
         collide = not self.ctrl.last_event.metadata["lastActionSuccess"]
-        if visible and not collide:
+        if obj_agent_dis_ < 2.0:
             reward = 0
             done = True
         elif collide:
             reward = -1
             done = True
-        elif obj_agent_dis_ < obj_agent_dist:
-            reward = -1 + (obj_agent_dist - obj_agent_dis_)
-            done = False
+        # elif obj_agent_dis_ < obj_agent_dist:
+        #     reward = -1 + (obj_agent_dist - obj_agent_dis_)
+        #     done = False
+        # elif obj_agent_dis_ > obj_agent_dist:
+        #     reward = -1
+        #     done = False
         else:
-            reward = -1
+            reward = -0.1
             done = False
 
         return reward, done, visible, obj_agent_dis_, first_person_obs, collide
