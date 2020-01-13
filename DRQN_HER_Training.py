@@ -106,7 +106,7 @@ with drqn_sess.as_default():
                 # if visible and collided:
                 #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
                 features_, ae_summary = ae_sess.run([ae.feature_vector, ae.merged],
-                                                    feed_dict={ae.image: obs_state[None, :, :, :]})
+                                                    feed_dict={ae.image: obs_state_[None, :, :, :]})
                 features_ = np.squeeze(features_, axis=0)
                 obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
@@ -159,7 +159,7 @@ with drqn_sess.as_default():
             success_rate.append(successes)
             success_failure_ratio.append(successes / (failures + 1e-6))
 
-            if n % 1000 == 0 and n > 0:
+            if n % 200 == 0 and n > 0:
                 plt.plot(losses)
                 plt.xlabel('episodes')
                 plt.ylabel('Losses')
