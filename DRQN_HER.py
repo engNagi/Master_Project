@@ -32,7 +32,7 @@ class DRQN(object):
             # seperate agent observation, and positions
             self.inputs = tf.placeholder(tf.float32, shape=(None, 512), name="features_positions")
             # additional goals
-            self.goals = tf.placeholder(tf.float32, shape=(None, 512), name="Goals_")
+            self.goals = tf.placeholder(tf.float32, shape=(None, 3), name="Goals_")
             #   actions
             self.actions = tf.placeholder(tf.int32, shape=(None,), name='actions')
             # Q-targets-values
@@ -44,7 +44,7 @@ class DRQN(object):
                 self.train_length = tf.placeholder(tf.int32)
                 self.batch_size = tf.placeholder(tf.int32, shape=[])
                 self.input_flat = tf.reshape(tf.layers.flatten(state_goals),
-                                             [self.batch_size, self.train_length, 1024])
+                                             [self.batch_size, self.train_length, 515])
 
                 # number_of_units may need to be changed
                 self.cell = tf.contrib.rnn.LSTMCell(num_units=self.nodes_num,
@@ -147,8 +147,8 @@ class DRQN(object):
             saver = tf.train.Saver(tf.global_variables())
             episode_number = int(load_path.split('-')[-1])
 
-    def save(self, n):
-        self.saver.save(self.session, self.save_path, global_step=n)
+    def save(self, global_step, n):
+        self.saver.save(self.session, self.save_path, global_step=global_step)
         print("SAVED MODEL #{}".format(n))
 
     def rnn_sample(self, batch_size, trace_length):
@@ -170,14 +170,9 @@ class DRQN(object):
         # # sample batches from experiences
         # else:
         # samples = self.rnn_sample(batch_size, trace_length)
-        states, actions, rewards, next_states, dones, goals = map(np.array, zip(*train_batch))
+        states, pos, actions, rewards, next_states, next_pos, dones, goals = map(np.array, zip(*train_batch))
         # Calculate targets
-        states = np.vstack(train_batch[:, 0])
-        actions = train_batch[:, 1]
-        rewards = train_batch[:, 2]
-        next_states = np.vstack(train_batch[:, 3])
-        goals = np.vstack(train_batch[:, 5])
-        dones = train_batch[:, 4]
+
         next_Qs, _, _ = target_model.predict(goals=goals,
                                              batch_size=batch_size,
                                              pos_obs_state=next_states,
@@ -195,20 +190,20 @@ class DRQN(object):
                                   rnn_state=rnn_stat_train)
         return loss, summary
 
-    def log(self, drqn_summary, total_steps):
+    def log(self, drqn_summary, encoder_summary, step):
 
-        # encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
-        # encoder_writer.add_summary(encoder_summary, global_step=total_steps)
+        encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
+        encoder_writer.add_summary(encoder_summary, global_step=step)
         writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train")
-        writer.add_summary(drqn_summary, global_step=total_steps)
-        #aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
+        writer.add_summary(drqn_summary, global_step=step)
+        aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
 
         # aux_summary = tf.Summary()
         # aux_summary.value.add(tag="success_rate", simple_value=success_rate)
-        # aux_summary.value.add(tag="failure_rate", simple_value=failure_rate)
+        # #aux_summary.value.add(tag="failure_rate", simple_value=failure_rate)
         # aux_summary.value.add(tag="ratio", simple_value=success_failure_ratio)
-        # aux_writer.add_summary(aux_summary, success_rate, global_step=total_steps)
-        # aux_writer.add_summary(aux_summary, failure_rate, total_steps)
+        # aux_writer.add_summary(aux_summary, success_rate)
+        # #aux_writer.add_summary(aux_summary, failure_rate, total_steps)
         # aux_writer.add_summary(aux_summary, success_failure_ratio)
 
 # def log_rnn(self):
