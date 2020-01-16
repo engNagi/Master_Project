@@ -15,7 +15,7 @@ class DRQN(object):
                  buffer_size=50000,
                  gamma=0.98,
                  nodes_num=518,
-                 save_path='//home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2_32_10/DRQN.ckpt'):
+                 save_path='//home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -208,5 +208,5 @@ class DRQN(object):
     #     # aux_writer.flush()
 
     def log_rnn(self):
-        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_2_32_10/Train")
+        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/Train")
         writer.add_summary(self.summary)

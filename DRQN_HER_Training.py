@@ -25,9 +25,9 @@ her_samples = 4
 # experience replay parameters
 her_rec_buffer = Her_rec_experiences()
 
-# DQN Bathrooms parameters
+# DQN_breakout Bathrooms parameters
 batch_size = 32
-trace_length = 10
+trace_length = 8
 gamma = 0.99
 fcl_dims = 512
 nodes_num = 256
@@ -38,6 +38,7 @@ pretrain_steps = 2000
 losses = []
 loss = 0
 loss_ = 0
+distance = 0
 success_rate = []
 failure_rate = []
 success_failure_ratio = []
@@ -85,7 +86,7 @@ with drqn_sess.as_default():
             #   rnn_init_state
             rnn_state = (np.zeros([1, nodes_num]), np.zeros([1, nodes_num]))
             # reset environment
-            obs_state, pos_state, goal, obj_agent_dis, _, _ = env.reset()
+            obs_state, pos_state, goal, distance, _, _ = env.reset()
 
             features = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state[None, :, :, :]})
             features = np.squeeze(features, axis=0)
@@ -101,12 +102,11 @@ with drqn_sess.as_default():
                                                          rnn_state=rnn_state,
                                                          obs_pos_state=obs_pos_state)
 
-                obs_state_, pos_state_, done, reward, object_agent_dis_, visible, _, collided = env.step(action,
-                                                                                                         obj_agent_dis)
+                obs_state_, pos_state_, distance_, done, reward, collision = env.step(action,
+                                                                                      goal, distance)
                 # if visible and collided:
                 #     print(" \nstep:", i, "visibility:", visible, ", collide:", collided, end=' ' * 10)
                 features_ = ae_sess.run(ae.feature_vector, feed_dict={ae.image: obs_state_[None, :, :, :]})
-
                 features_ = np.squeeze(features_, axis=0)
                 obs_pos_state_ = np.concatenate((features_, pos_state_), axis=0)
 
@@ -130,7 +130,7 @@ with drqn_sess.as_default():
                                                  train_batch=train_batch,
                                                  trace_length=trace_length,
                                                  target_model=target_model)
-                        #model.log_rnn()
+                        # model.log_rnn()
                 # model.log(encoder_summary=ae_summary,
                 #           drqn_summary=drqn_summary,
                 #           success_rate=successes,
@@ -139,58 +139,57 @@ with drqn_sess.as_default():
                 total_steps += 1
                 rnn_state = rnn_state_
                 obs_pos_state = obs_pos_state_
-                obj_agent_dis = object_agent_dis_
-
+                distance = distance_
+                # print("step:", total_steps, "goal position", goal[0], ",", goal[2], "distance: %3f" % distance,
+                #       "failures", failures, "ratio %.3f" % (successes / (failures + 1e-6)), "loss: %.2f" % loss,
+                #       "exploration %.2f" % epsilon)
                 if done:
-                    if visible and not collided:
-                        successes += done
-                    else:
-                        failures += done
+                    if total_steps > pretrain_steps:
+                        if distance == 0:
+                            successes += done
+                        else:
+                            failures += done
                     break
             her_rec_buffer.add(episode_buffer.memory)
             epsilon = max(epsilon * epsilon_decay, epsilon_min)
             success_rate.append(successes / (failures + 1e-6))
-            print("\repisode:", n + 1, "successes:", successes,
-                  "failures", failures, "ratio %.3f" % (successes / (failures + 1e-6)),
-                  'loss: %.2f' % loss, 'exploration %.2f' % epsilon)
+            print("\repisode:", n + 1, "successes:", successes, "goal position", goal[0], ",", goal[2]
+                  , "distance: %3f" % distance, "failures", failures, "ratio %.3f" % (successes / (failures + 1e-6)),
+                  "loss: %.2f" % loss, "exploration %.2f" % epsilon)
 
             losses.append(loss)
             failure_rate.append(failures)
             success_rate.append(successes)
             success_failure_ratio.append(successes / (failures + 1e-6))
 
-            if n % 1000 == 0 and n > 0:
+            if n % 5000 == 0 and n > 0:
                 plt.plot(losses)
                 plt.xlabel('episodes')
                 plt.ylabel('Losses')
                 plt.savefig("losses.png")
-                plt.show()
 
                 plt.plot(success_rate)
                 plt.xlabel('episodes')
                 plt.ylabel('Success rate')
                 plt.savefig("Success.png")
-                plt.show()
 
                 plt.plot(failure_rate)
                 plt.xlabel('episodes')
                 plt.ylabel('failure rate')
                 plt.savefig("failure.png")
-                plt.show()
 
                 plt.plot(success_failure_ratio)
                 plt.xlabel('episodes')
                 plt.ylabel('Success/failure ratio')
                 plt.savefig("Success_failure_ratio.png")
-                plt.show()
 
-                plt.plot(num_episodes, success_rate, 'b-', label='success rate')
-                plt.plot(num_episodes, failure_rate, 'r-', label='failure rate')
-                plt.plot(num_episodes, success_failure_ratio, 'o-', label='ratio')
-                plt.ylabel('score')
-                plt.xlabel('episode')
-                plt.legend()
-                plt.show()
+                # plt.plot(num_episodes, success_rate, 'b-', label='success rate')
+                # plt.plot(num_episodes, failure_rate, 'r-', label='failure rate')
+                # plt.plot(num_episodes, success_failure_ratio, '-', label='ratio')
+                # plt.ylabel('score')
+                # plt.xlabel('episode')
+                # plt.savefig("performance.png")
+                # plt.legend()
             #   saving
             if n % 50 == 0 and n > 0:
                 model.save(n)
@@ -200,25 +199,21 @@ plt.plot(losses)
 plt.xlabel('episodes')
 plt.ylabel('Losses')
 plt.savefig("losses.png")
-plt.show()
 
 plt.plot(success_rate)
 plt.xlabel('episodes')
 plt.ylabel('Success rate')
 plt.savefig("Success.png")
-plt.show()
 
 plt.plot(failure_rate)
 plt.xlabel('episodes')
 plt.ylabel('failure rate')
 plt.savefig("failure.png")
-plt.show()
 
 plt.plot(success_failure_ratio)
 plt.xlabel('episodes')
 plt.ylabel('Success/failure ratio')
 plt.savefig("Success_failure_ratio.png")
-plt.show()
 
 plt.plot(num_episodes, success_rate, 'b-', label='success rate')
 plt.plot(num_episodes, failure_rate, 'r-', label='failure rate')
@@ -226,4 +221,3 @@ plt.plot(num_episodes, success_failure_ratio, 'o-', label='ratio')
 plt.ylabel('score')
 plt.xlabel('episode')
 plt.legend()
-plt.show()
