@@ -13,10 +13,10 @@ class experience_buffer(object):
         self.memory.extend(experience)
 
     def sample(self, batch_size):
-        return np.reshape(np.array(random.sample(self.memory, batch_size)), [batch_size, 6])
+        return np.reshape(np.array(random.sample(self.memory, batch_size)), [batch_size, 8])
 
     def get(self):
-        return np.reshape(np.array(self.memory), [len(self.memory), 6])
+        return np.reshape(np.array(self.memory), [len(self.memory), 8])
 
 
 
