@@ -26,7 +26,7 @@ class Her_rec_experiences(object):
         return np.reshape(sampled_traces, [batch_size * trace_length, 6])
 
     def get(self):
-        return np.reshape(np.array(self.memory), [len(self.memory), 5])
+        return np.reshape(np.array(self.memory), [len(self.memory), 6])
 
     def her(self, strategy, her_samples):
         if strategy == "future":
