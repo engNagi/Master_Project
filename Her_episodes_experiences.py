@@ -23,10 +23,10 @@ class Her_rec_experiences(object):
             point = np.random.randint(0, len(episode) + 1 - trace_length)
             sampled_traces.append(episode[point:point + trace_length])
         sampled_traces = np.array(sampled_traces)
-        return np.reshape(sampled_traces, [batch_size * trace_length, 6])
+        return np.reshape(sampled_traces, [batch_size * trace_length, 8])
 
     def get(self):
-        return np.reshape(np.array(self.memory), [len(self.memory), 5])
+        return np.reshape(np.array(self.memory), [len(self.memory), 8])
 
     def her(self, strategy, her_samples):
         if strategy == "future":
@@ -36,17 +36,21 @@ class Her_rec_experiences(object):
                 for trans_idx in range(len(episode)):
                     for k in range(her_samples):
                         future_samples = np.random.randint(trans_idx, len(episode))
-                        goal = episode[future_samples][3]
+                        goal = episode[future_samples][5]
                         #goal_pos = goal[-3:]
                         state = episode[trans_idx][0]
-                        action = episode[trans_idx][1]
-                        next_state = episode[trans_idx][3]
+                        pos = episode[trans_idx][1]
+                        action = episode[trans_idx][2]
+                        next_state = episode[trans_idx][4]
+                        next_pos = episode[trans_idx][5]
                         #next_state_pos = next_state[-3:]
-                        done = np.array_equal(goal, next_state)
+                        done = np.array_equal(goal, next_pos)
                         reward = 0 if done else -1
                         episode[trans_idx][0] = state
-                        episode[trans_idx][1] = action
-                        episode[trans_idx][2] = reward
-                        episode[trans_idx][3] = next_state
-                        episode[trans_idx][4] = done
-                        episode[trans_idx][5] = goal
+                        episode[trans_idx][1] = pos
+                        episode[trans_idx][2] = action
+                        episode[trans_idx][3] = reward
+                        episode[trans_idx][4] = next_state
+                        episode[trans_idx][5] = next_pos
+                        episode[trans_idx][6] = done
+                        episode[trans_idx][7] = goal
