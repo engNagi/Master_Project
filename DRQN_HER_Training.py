@@ -151,13 +151,13 @@ with drqn_sess.as_default():
                                               "Failed trajectories": failures, "Ratio": (successes / (failures + 1e-6)),
                                               "loss": loss}, ignore_index=True)
 
-            if n % 100 == 0 and n > 0:
+            if n % 1000 == 0 and n > 0:
                 #   combined plot of successful failed trajectories and Ratio between them
                 data_plots.plot(x="Episodes", y=["Successful trajectories", "Failed trajectories", "Ratio"],
                                 title="Agent Learning Ratio")
                 plt.xlabel("Episodes")
                 plt.ylabel("Successful/Failed Trajectories and Ratio")
-                plt.savefig("failed_success_ratio1.png")
+                plt.savefig("failed_success_ratio" + str(n) + ".png")
 
 
 
@@ -166,7 +166,7 @@ with drqn_sess.as_default():
                                 title="Successful Trajectories")
                 plt.xlabel("Episodes")
                 plt.ylabel("Successful Trajectories")
-                plt.savefig("successful1.png")
+                plt.savefig("successful" + str(n) + ".png")
 
 
 
@@ -175,7 +175,7 @@ with drqn_sess.as_default():
                                 title="Failed Trajectories")
                 plt.xlabel("Episodes")
                 plt.ylabel("Failed Trajectories")
-                plt.savefig("Failed1.png")
+                plt.savefig("Failed" + str(n) + ".png")
 
 
 
@@ -183,14 +183,14 @@ with drqn_sess.as_default():
                                 title="Ratio between successful and faild trajectories")
                 plt.xlabel("Episodes")
                 plt.ylabel("Ratio")
-                plt.savefig("Ratio1.png")
+                plt.savefig("Ratio" + str(n) + ".png")
 
 
                 data_plots.plot(x="Episodes", y=["loss"],
                                 title="HER-DRQN model loss")
                 plt.xlabel("Episodes")
                 plt.ylabel("Loss")
-                plt.savefig("Loss1.png")
+                plt.savefig("Loss" + str(n) + ".png")
 
 
 

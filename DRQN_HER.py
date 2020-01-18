@@ -15,7 +15,7 @@ class DRQN(object):
                  buffer_size=50000,
                  gamma=0.98,
                  nodes_num=518,
-                 save_path='/home/nagi/Desktop/Master_Project/DRQN_features_pos/DRQN.ckpt'):
+                 save_path='/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN_features_pos/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -172,12 +172,12 @@ class DRQN(object):
                                      rnn_state=rnn_stat_train)
         return loss, summary
 
-    def log(self, encoder_summary, drqn_summary, step):
-
-        encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN_features_pos/encoder")
-        encoder_writer.add_summary(encoder_summary, global_step=step)
-        writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN_features_pos/Train")
-        writer.add_summary(drqn_summary, global_step=step)
+    # def log(self, encoder_summary, drqn_summary, step):
+    #
+    #     encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN_features_pos/encoder")
+    #     encoder_writer.add_summary(encoder_summary, global_step=step)
+    #     writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN_features_pos/Train")
+    #     writer.add_summary(drqn_summary, global_step=step)
 
         # aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
         # aux_summary.value.add(tag="success_rate", simple_value=success_rate)

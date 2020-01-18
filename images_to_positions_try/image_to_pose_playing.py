@@ -3,7 +3,7 @@ import tensorflow as tf
 #from bitflipping import BitFlip
 import time
 from Environment_dataset_generation import Environment
-from image_poses import Pose_CNN
+from images_to_positions_try.image_poses import Pose_CNN
 import numpy as np
 import matplotlib.pyplot as plt
 
