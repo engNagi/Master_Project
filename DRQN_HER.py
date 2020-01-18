@@ -15,7 +15,7 @@ class DRQN(object):
                  buffer_size=50000,
                  gamma=0.98,
                  nodes_num=518,
-                 save_path='//home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/DRQN.ckpt'):
+                 save_path='/home/nagi/Desktop/Master_Project/DRQN_features_pos/DRQN.ckpt'):
 
         self.action_n = action_n
         self.scope = scope
@@ -149,26 +149,10 @@ class DRQN(object):
         self.saver.save(self.session, self.save_path, global_step=n)
         print("SAVED MODEL #{}".format(n))
 
-    def rnn_sample(self, batch_size, trace_length):
-        sampled_traces = []
-        for i in range(batch_size):
-            idx = np.random.randint(0, len(self.buffer))
-            if idx + trace_length > len(self.buffer):
-                idx -= trace_length
-            sampled_traces.append(list(self.buffer)[idx:idx + trace_length])
-        sampled_traces = np.array(sampled_traces)
-        sampled_traces = np.reshape(sampled_traces, [batch_size * trace_length, 6])
-        return sampled_traces
-
     def optimize(self, model, target_model, batch_size, train_batch, trace_length):
         losses = 0
         rnn_stat_train = (np.zeros([batch_size, self.nodes_num]), np.zeros([batch_size, self.nodes_num]))
-        # for _ in range(optimization_steps):
-        # if len(self.buffer) < batch_size:  # if there's no enough transitions, do nothing
-        #     return 0
-        # # sample batches from experiences
-        # else:
-        # samples = self.rnn_sample(batch_size, trace_length)
+
         states, actions, rewards, next_states, dones, goals = map(np.array, zip(*train_batch))
         # Calculate targets
         next_Qs, _, _ = target_model.predict(goals=goals,
@@ -179,34 +163,35 @@ class DRQN(object):
         next_Q = np.amax(next_Qs, axis=1)
         target_q_values = rewards + np.invert(dones).astype(np.float32) * self.gamma * next_Q
         #   Calculate network loss
-        loss = model.update(goals=goals,
-                            states=states,
-                            actions=actions,
-                            batch_size=batch_size,
-                            q_values=target_q_values,
-                            trace_length=trace_length,
-                            rnn_state=rnn_stat_train)
-        return loss
+        loss, summary = model.update(goals=goals,
+                                     states=states,
+                                     actions=actions,
+                                     batch_size=batch_size,
+                                     q_values=target_q_values,
+                                     trace_length=trace_length,
+                                     rnn_state=rnn_stat_train)
+        return loss, summary
 
-    # def log(self, encoder_summary, drqn_summary, success_rate, failure_rate, success_failure_ratio):
-    #
-    #     # encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/encoder")
-    #     # encoder_writer.add_summary(encoder_summary)
-    #     # writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/Train", self.session.graph)
-    #     # writer.add_summary(drqn_summary)
-    #     # aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
-    #
-    #     # aux_summary = tf.Summary()
-    #     # aux_summary.value.add(tag="success_rate", simple_value=success_rate)
-    #     # aux_summary.value.add(tag="failure_rate", simple_value=failure_rate)
-    #     # aux_summary.value.add(tag="ratio", simple_value=success_failure_ratio)
-    #     # aux_writer.add_summary(aux_summary, success_rate)
-    #     # aux_writer.add_summary(aux_summary, failure_rate)
-    #     # aux_writer.add_summary(aux_summary, success_failure_ratio)
-    #     # writer.flush()
-    #     # encoder_writer.flush()
+    def log(self, encoder_summary, drqn_summary, step):
+
+        encoder_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN_features_pos/encoder")
+        encoder_writer.add_summary(encoder_summary, global_step=step)
+        writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN_features_pos/Train")
+        writer.add_summary(drqn_summary, global_step=step)
+
+        # aux_writer = tf.summary.FileWriter("/home/nagi/Desktop/Master_Project/DRQN/aux")
+        # aux_summary.value.add(tag="success_rate", simple_value=success_rate)
+        # aux_summary.value.add(tag="failure_rate", simple_value=failure_rate)
+        # aux_summary.value.add(tag="ratio", simple_value=success_failure_ratio)
+        #
+        # aux_summary = tf.Summary()
+        # aux_writer.add_summary(aux_summary, success_rate)
+        # aux_writer.add_summary(aux_summary, failure_rate)
+        # aux_writer.add_summary(aux_summary, success_failure_ratio)
+        # writer.flush()
+        # encoder_writer.flush()
     #     # aux_writer.flush()
-
-    def log_rnn(self):
-        writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/Train")
-        writer.add_summary(self.summary)
+    #
+    # def log_rnn(self):
+    #     writer = tf.summary.FileWriter("/home/WIN-UNI-DUE/sjmonagi/Desktop/Master_Project/DRQN/Train")
+    #     writer.add_summary(self.summary)
