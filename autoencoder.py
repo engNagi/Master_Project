@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 import glob, random, os
 
-from tensorflow import name_scope
 
 tf.logging.set_verbosity(tf.logging.ERROR)
 
